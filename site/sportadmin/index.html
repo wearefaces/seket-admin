@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seket Admin - SportAdmin Matcher</title>
+    <!-- Konfiguration och Supabase-klient -->
+    <script src="../config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
     <style>
         :root {
             --primary: #1e3a8a;
@@ -151,6 +154,10 @@
         <button class="export-btn" onclick="exportToCSV()">📊 Exportera schema (CSV)</button>
     </header>
 
+    <div class="config-box" id="db-status" style="margin-top: -10px;">
+        <span id="db-status-text" style="font-size: 12px; color: var(--text-muted);">Kontrollerar databas...</span>
+    </div>
+
     <div class="config-box">
         <label style="font-weight: bold; color: #334155;">Din kopplade SportAdmin-kalender:</label>
         <div class="input-group">
@@ -172,6 +179,17 @@
 </div>
 
 <script>
+    // Supabase setup
+    const SUPABASE_URL = (typeof window.SEKET_SUPABASE_URL === 'string' && window.SEKET_SUPABASE_URL.trim()) ? window.SEKET_SUPABASE_URL.trim() : '';
+    const SUPABASE_ANON = (typeof window.SEKET_SUPABASE_ANON_KEY === 'string' && window.SEKET_SUPABASE_ANON_KEY.trim()) ? window.SEKET_SUPABASE_ANON_KEY.trim() : '';
+    const TEAM = (typeof window.SEKET_TEAM === 'string' ? window.SEKET_TEAM : '') || '';
+    const supabaseClient = (SUPABASE_URL && SUPABASE_ANON && window.supabase && window.supabase.createClient)
+        ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+        : null;
+    const dbStatusEl = document.getElementById('db-status-text');
+    if (dbStatusEl) {
+        dbStatusEl.textContent = supabaseClient ? '🟢 Delad databas aktiv (Supabase)' : '🔒 Delad databas ej konfigurerad — sparar lokalt i webbläsaren';
+    }
     function parseRobustICS(icsText) {
         const cleanText = icsText.replace(/^﻿/, '');
         const unfolded = cleanText.replace(/
@@ -255,6 +273,32 @@
     let matches = JSON.parse(localStorage.getItem('seket_matches')) || [];
     let assignments = JSON.parse(localStorage.getItem('seket_assignments')) || {};
 
+    async function loadAssignmentsFromSupabase() {
+        if (!supabaseClient) return;
+        try {
+            let query = supabaseClient.from('seket_assignments').select('*');
+            if (TEAM) query = query.eq('team', TEAM);
+            const { data, error } = await query;
+            if (error) throw error;
+            if (Array.isArray(data)) {
+                data.forEach(item => {
+                    assignments[item.match_id] = {
+                        klocka: item.klocka || '',
+                        ovr: item.ovr || '',
+                        speaker: item.speaker || '',
+                        musik: item.musik || '',
+                        bas1: item.bas1 || '',
+                        bas2: item.bas2 || ''
+                    };
+                });
+                localStorage.setItem('seket_assignments', JSON.stringify(assignments));
+                renderMatches();
+            }
+        } catch (e) {
+            console.error('Kunde inte hämta data från Supabase:', e);
+        }
+    }
+
     function renderMatches() {
         const listEl = document.getElementById('match-list');
         document.getElementById('match-count').innerText = `Matcher (${matches.length})`;
@@ -317,6 +361,24 @@
         assignments[matchId][role] = value;
         localStorage.setItem('seket_assignments', JSON.stringify(assignments));
         renderMatches();
+        // Synka till Supabase om aktivt
+        if (supabaseClient) {
+            const a = assignments[matchId] || {};
+            const payload = {
+                match_id: matchId,
+                team: TEAM || null,
+                klocka: a.klocka || null,
+                ovr: a.ovr || null,
+                speaker: a.speaker || null,
+                musik: a.musik || null,
+                bas1: a.bas1 || null,
+                bas2: a.bas2 || null,
+                updated_at: new Date().toISOString()
+            };
+            supabaseClient.from('seket_assignments').upsert(payload, { onConflict: 'match_id' }).then(({ error }) => {
+                if (error) console.error('Kunde inte synka till Supabase:', error);
+            });
+        }
     }
 
         function decodeIcsPayload(contents) {
@@ -398,6 +460,7 @@
     }
 
     renderMatches();
+    loadAssignmentsFromSupabase();
 </script>
 </body>
 </html>
