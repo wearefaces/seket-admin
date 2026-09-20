@@ -1,8 +1,8 @@
 # Seket Admin
 
-Static Seket admin hosted on GitHub Pages (free).
+Static Seket admin on free GitHub Pages. **No Supabase** — matches and assignments are stored in the browser (`localStorage`).
 
-- https://wearefaces.github.io/seket-admin/ — main app
-- https://wearefaces.github.io/seket-admin/sportadmin/ — SportAdmin view
+- https://wearefaces.github.io/seket-admin/ — main app (localStorage)
+- https://wearefaces.github.io/seket-admin/sportadmin/ — SportAdmin matcher (localStorage)
 
-Replaces the Cloud Run deployment that fails when GCP billing is disabled.
+SportAdmin calendar sync keeps only events titled `Match: …` (drops träning/morgonskills/etc.).

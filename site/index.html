@@ -120,7 +120,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
                 <h1>🏒 Seket Arc Live</h1>
-                <div class="subtitle">Administrera, synka matchkalender och spara i realtid med Supabase</div>
+                <div class="subtitle">Administrera och synka matchkalender — sparas lokalt i webbläsaren (utan Supabase)</div>
             </div>
             <div class="flex-buttons">
                 <button class="btn-secondary" @click="exportCSV()">Exportera CSV</button>
@@ -129,23 +129,7 @@
     </header>
 
     <!-- KONFIGURATION -->
-    <div class="card">
-        <h3 style="margin-top:0; margin-bottom:10px; font-size:16px;">🌐 Databaskoppling (Supabase)</h3>
-        <p style="font-size:13px; color:#64748b; margin:0 0 12px 0;">Fyll i dina Supabase-uppgifter för att spara live i molnet så hela laget ser ändringarna direkt.</p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-            <div>
-                <label style="font-size:12px; font-weight:600;">Supabase URL</label>
-                <input type="text" x-model="dbUrl" placeholder="https://your-project.supabase.co">
-            </div>
-            <div>
-                <label style="font-size:12px; font-weight:600;">Supabase Anon API Key</label>
-                <input type="text" x-model="dbKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-            </div>
-        </div>
-        <div class="flex-buttons">
-            <button @click="connectDB()">Spara & Anslut Live</button>
-            <div x-show="isLive" class="db-status">🟢 Live-ansluten till molnet</div>
-            <div x-show="!isLive" class="db-status" style="color:#94a3b8;">⚪ Sparar lokalt i webbläsaren just nu</div>
+<div x-show="!isLive" class="db-status" style="color:#94a3b8;">⚪ Sparar lokalt i webbläsaren just nu</div>
         </div>
     </div>
 
@@ -235,8 +219,6 @@
 function seketApp() {
     return {
         icalUrl: '',
-        dbUrl: '',
-        dbKey: '',
         isLive: false,
         matches: [
             { id: "demo-1", summary: "A-lag HC vs Derby IK", start: "2026-10-12T19:00:00", location: "Hemmarinken Ishall" },
@@ -247,9 +229,7 @@ function seketApp() {
 
         init() {
             // Ladda sparad konfig från localStorage vid start
-            this.dbUrl = localStorage.getItem('seket_db_url') || '';
-            this.dbKey = localStorage.getItem('seket_db_key') || '';
-            this.icalUrl = localStorage.getItem('seket_ical_url') || '';
+            this.icalUrl = localStorage.getItem('seket_ical_url') || 'https://portalweb.sportadmin.se/webcal?id=0e4dee57-db8d-4d2a-af08-e4dd1990fc4a';
             
             const savedMatches = localStorage.getItem('seket_matches');
             if (savedMatches) this.matches = JSON.parse(savedMatches);
@@ -375,17 +355,6 @@ function seketApp() {
             }
         },
 
-        async syncToSupabase(matchId) {
-            const data = this.assignments[matchId];
-            try {
-                await fetch(`${this.dbUrl}/rest/v1/seket_assignments?match_id=eq.${matchId}`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': this.dbKey,
-                        'Authorization': `Bearer ${this.dbKey}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'resolution=merge-duplicates'
-                    },
                     body: JSON.stringify({
                         match_id: matchId,
                         klocka: data.klocka,
@@ -402,14 +371,6 @@ function seketApp() {
             }
         },
 
-        async loadFromSupabase() {
-            if (!this.isLive) return;
-            try {
-                const response = await fetch(`${this.dbUrl}/rest/v1/seket_assignments`, {
-                    headers: {
-                        'apikey': this.dbKey,
-                        'Authorization': `Bearer ${this.dbKey}`
-                    }
                 });
                 const data = await response.json();
                 if (Array.isArray(data)) {
