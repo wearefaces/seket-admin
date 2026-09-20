@@ -6,6 +6,10 @@
     <title>Seket Arc Live - Ishockey</title>
     <!-- Alpine.js för enkel reaktivitet -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Konfiguration (fyll i site/config.js från config.example.js) -->
+    <script src="./config.js"></script>
+    <!-- Supabase-klient (v2, global window.supabase) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
     <style>
         :root {
             --primary: #1e3a8a;
@@ -120,7 +124,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
                 <h1>🏒 Seket Arc Live</h1>
-                <div class="subtitle">Administrera och synka matchkalender — sparas lokalt i webbläsaren (utan Supabase)</div>
+                <div class="subtitle" x-text="isLive ? 'Administrera och synka matchkalender — DELAD databas (Supabase)' : 'Administrera och synka matchkalender — sparas lokalt i webbläsaren'"></div>
             </div>
             <div class="flex-buttons">
                 <button class="btn-secondary" @click="exportCSV()">Exportera CSV</button>
@@ -128,9 +132,10 @@
         </div>
     </header>
 
-    <!-- KONFIGURATION -->
-<div x-show="!isLive" class="db-status" style="color:#94a3b8;">⚪ Sparar lokalt i webbläsaren just nu</div>
-        </div>
+    <!-- Databasstatus / banner -->
+    <div class="card" style="margin-top: 0;">
+        <div class="db-status" x-show="!isLive" style="color:#ef4444;">🔒 Delad databas ej konfigurerad — sparar lokalt i webbläsaren</div>
+        <div class="db-status" x-show="isLive" style="color:#10b981;">🟢 Delad databas aktiv (Supabase)</div>
     </div>
 
     <div class="card">
@@ -220,6 +225,8 @@ function seketApp() {
     return {
         icalUrl: '',
         isLive: false,
+        supabase: null,
+        team: '',
         matches: [
             { id: "demo-1", summary: "A-lag HC vs Derby IK", start: "2026-10-12T19:00:00", location: "Hemmarinken Ishall" },
             { id: "demo-2", summary: "A-lag HC vs Östkust Wizards", start: "2026-10-19T19:30:00", location: "Hemmarinken Ishall" },
@@ -230,6 +237,7 @@ function seketApp() {
         init() {
             // Ladda sparad konfig från localStorage vid start
             this.icalUrl = localStorage.getItem('seket_ical_url') || 'https://portalweb.sportadmin.se/webcal?id=0e4dee57-db8d-4d2a-af08-e4dd1990fc4a';
+            this.team = (typeof window.SEKET_TEAM === 'string' ? window.SEKET_TEAM : '') || '';
             
             const savedMatches = localStorage.getItem('seket_matches');
             if (savedMatches) this.matches = JSON.parse(savedMatches);
@@ -237,9 +245,15 @@ function seketApp() {
             const savedAssignments = localStorage.getItem('seket_assignments');
             if (savedAssignments) this.assignments = JSON.parse(savedAssignments);
 
-            if (this.dbUrl && this.dbKey) {
+            // Initiera Supabase om config finns
+            const url = (typeof window.SEKET_SUPABASE_URL === 'string' && window.SEKET_SUPABASE_URL.trim()) ? window.SEKET_SUPABASE_URL.trim() : '';
+            const key = (typeof window.SEKET_SUPABASE_ANON_KEY === 'string' && window.SEKET_SUPABASE_ANON_KEY.trim()) ? window.SEKET_SUPABASE_ANON_KEY.trim() : '';
+            if (url && key && window.supabase && window.supabase.createClient) {
+                this.supabase = window.supabase.createClient(url, key);
                 this.isLive = true;
                 this.loadFromSupabase();
+            } else {
+                this.isLive = false; // offline-only
             }
         },
 
@@ -256,19 +270,6 @@ function seketApp() {
 
             if (this.isLive) {
                 this.syncToSupabase(matchId);
-            }
-        },
-
-        connectDB() {
-            if (this.dbUrl && this.dbKey) {
-                localStorage.setItem('seket_db_url', this.dbUrl);
-                localStorage.setItem('seket_db_key', this.dbKey);
-                this.isLive = true;
-                this.loadFromSupabase();
-                alert("Databasinställningar sparade!");
-            } else {
-                this.isLive = false;
-                alert("Sparar i offlineläge (lokalt i webbläsaren).");
             }
         },
 
@@ -355,24 +356,37 @@ function seketApp() {
             }
         },
 
-                    body: JSON.stringify({
-                        match_id: matchId,
-                        klocka: data.klocka,
-                        ovr: data.ovr,
-                        speaker: data.speaker,
-                        musik: data.musik,
-                        bas1: data.bas1,
-                        bas2: data.bas2,
-                        updated_at: new Date().toISOString()
-                    })
-                });
+        async syncToSupabase(matchId) {
+            if (!this.supabase) return;
+            const data = this.getAssignment(matchId);
+            try {
+                const payload = {
+                    match_id: matchId,
+                    team: this.team || null,
+                    klocka: data.klocka || null,
+                    ovr: data.ovr || null,
+                    speaker: data.speaker || null,
+                    musik: data.musik || null,
+                    bas1: data.bas1 || null,
+                    bas2: data.bas2 || null,
+                    updated_at: new Date().toISOString()
+                };
+                const { error } = await this.supabase
+                    .from('seket_assignments')
+                    .upsert(payload, { onConflict: 'match_id' });
+                if (error) throw error;
             } catch (e) {
-                console.error("Kunde inte synka till molnet:", e);
+                console.error("Kunde inte synka till Supabase:", e);
             }
         },
 
-                });
-                const data = await response.json();
+        async loadFromSupabase() {
+            if (!this.supabase) return;
+            try {
+                let query = this.supabase.from('seket_assignments').select('*');
+                if (this.team) query = query.eq('team', this.team);
+                const { data, error } = await query;
+                if (error) throw error;
                 if (Array.isArray(data)) {
                     data.forEach(item => {
                         this.assignments[item.match_id] = {
@@ -387,7 +401,7 @@ function seketApp() {
                     localStorage.setItem('seket_assignments', JSON.stringify(this.assignments));
                 }
             } catch (e) {
-                console.error("Kunde inte hämta molndata:", e);
+                console.error("Kunde inte hämta data från Supabase:", e);
             }
         },
 
