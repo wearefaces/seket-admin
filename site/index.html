@@ -308,9 +308,24 @@ function seketApp() {
 
             try {
                 // Använd en gratis CORS-proxy för klientbaserad iCal-hämtning
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(this.icalUrl);
+                let url = this.icalUrl.trim();
+                if (url.startsWith('webcal://')) url = url.replace('webcal://', 'https://');
+                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
                 const response = await fetch(proxyUrl);
-                const icsText = await response.text();
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                let icsText = await response.text();
+                if (!icsText.includes('BEGIN:VCALENDAR')) {
+                    const getRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
+                    const data = await getRes.json();
+                    let contents = data.contents || '';
+                    if (contents.startsWith('data:')) {
+                        const comma = contents.indexOf(',');
+                        const meta = contents.slice(0, comma);
+                        const payload = contents.slice(comma + 1);
+                        contents = /;base64/i.test(meta) ? decodeURIComponent(escape(atob(payload))) : decodeURIComponent(payload);
+                    }
+                    icsText = contents;
+                }
                 this.parseICS(icsText);
             } catch (error) {
                 alert("Kunde inte hämta kalendern via proxy. Dubbelkolla länken.");
@@ -327,7 +342,11 @@ function seketApp() {
                     currentEvent = {};
                 } else if (line.startsWith("END:VEVENT")) {
                     if (currentEvent && currentEvent.summary) {
-                        parsedMatches.push(currentEvent);
+                        const s = currentEvent.summary.trim();
+                        const sl = s.toLowerCase();
+                        const isTraining = sl.includes('träning') || sl.includes('traning') || sl.includes('morgonskills') || sl.includes('extrapass') || sl.includes('frivilligt');
+                        const isMatch = !isTraining && (/^match\s*:/i.test(s) || /\bmatch\b/i.test(s));
+                        if (isMatch) parsedMatches.push(currentEvent);
                     }
                     currentEvent = null;
                 } else if (currentEvent) {

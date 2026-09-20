@@ -174,9 +174,11 @@
 <script>
     function parseRobustICS(icsText) {
         const cleanText = icsText.replace(/^﻿/, '');
-        const unfolded = cleanText.replace(/?
+        const unfolded = cleanText.replace(/
+?
 [ 	]/g, '');
-        const lines = unfolded.split(/?
+        const lines = unfolded.split(/
+?
 /);
         
         const fetchedMatches = [];
@@ -191,8 +193,10 @@
             } 
             else if (cleanLine.startsWith("END:VEVENT")) {
                 if (currentEvent) {
-                    const s = currentEvent.summary.toLowerCase();
-                    const isMatch = s.includes('match') || s.includes('vs') || s.includes('-') || s.includes('cup');
+                    const s = currentEvent.summary.trim();
+                    const sl = s.toLowerCase();
+                    const isTraining = sl.includes('träning') || sl.includes('traning') || sl.includes('morgonskills') || sl.includes('extrapass') || sl.includes('frivilligt');
+                    const isMatch = !isTraining && (/^match\s*:/i.test(s) || /\bmatch\b/i.test(s));
                     
                     if (isMatch) {
                         if (!currentEvent.id) currentEvent.id = Math.random().toString(36).substring(2, 9);
@@ -315,28 +319,61 @@
         renderMatches();
     }
 
+        function decodeIcsPayload(contents) {
+        if (!contents) return '';
+        if (contents.startsWith('data:')) {
+            const comma = contents.indexOf(',');
+            const meta = contents.slice(0, comma);
+            const data = contents.slice(comma + 1);
+            if (/;base64/i.test(meta)) {
+                try { return decodeURIComponent(escape(atob(data))); } catch (e) { return atob(data); }
+            }
+            return decodeURIComponent(data);
+        }
+        return contents;
+    }
+
+    async function fetchIcsText(url) {
+        const proxies = [
+            'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+            'https://api.allorigins.win/get?url=' + encodeURIComponent(url)
+        ];
+        let lastErr;
+        for (const proxyUrl of proxies) {
+            try {
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const ct = response.headers.get('content-type') || '';
+                if (proxyUrl.includes('/get?') || ct.includes('application/json')) {
+                    const data = await response.json();
+                    const text = decodeIcsPayload(data.contents || '');
+                    if (text.includes('BEGIN:VCALENDAR')) return text;
+                } else {
+                    const text = await response.text();
+                    if (text.includes('BEGIN:VCALENDAR')) return text;
+                }
+            } catch (e) { lastErr = e; }
+        }
+        throw lastErr || new Error('proxy failed');
+    }
+
     async function fetchCalendar() {
         let url = document.getElementById('ical-url').value.trim();
         if (!url) return;
         
         if (url.startsWith("webcal://")) url = url.replace("webcal://", "https://");
 
-        const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent(url);
-
         try {
-            const response = await fetch(proxyUrl);
-            const data = await response.json();
-            const icsText = data.contents;
-            
+            const icsText = await fetchIcsText(url);
             const parsedMatches = parseRobustICS(icsText);
 
             if (parsedMatches.length > 0) {
                 matches = parsedMatches;
                 localStorage.setItem('seket_matches', JSON.stringify(matches));
                 renderMatches();
-                alert(\`Succé! Hittade och läste in \${parsedMatches.length} matcher från din SportAdmin-kalender.\`);
+                alert(`Succé! Hittade och läste in ${parsedMatches.length} matcher från din SportAdmin-kalender.`);
             } else {
-                alert("Hittade inga händelser som matchade sökfiltret för ishockeymatcher i den här kalendern.");
+                alert("Hittade inga matcher i kalendern (träningar/morgonskills filtreras bort).");
             }
         } catch (error) {
             alert("Kunde inte ansluta live till SportAdmin just nu. Testa igen om en kort stund.");
