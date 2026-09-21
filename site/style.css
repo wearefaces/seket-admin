@@ -430,17 +430,49 @@ input:focus-visible {
 /* Responsive */
 @media (max-width: 720px) {
   .app-header-inner {
-    align-items: flex-start;
+    /* Stack brand over status chips on small screens for readability */
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
   }
+  .brand-title .title { 
+    /* Allow full club names to wrap instead of truncating */
+    white-space: normal; 
+    line-height: 1.2;
+  }
+  .brand-title .subtitle { white-space: normal; }
+  .scoreboard { 
+    width: 100%; 
+    justify-content: flex-start; 
+    overflow-x: auto; 
+    padding-bottom: 2px; 
+  }
+  .chip { font-size: 12px; padding: 6px 10px; }
   .header-actions { width: 100%; justify-content: flex-start; }
   .config-grid { grid-template-columns: 1fr; }
+  /* Put kick-off pill under teams on mobile to avoid empty right column */
+  .match-header { grid-template-columns: 1fr; }
+  .match-badge { justify-self: start; margin-top: 2px; }
   .teams { grid-template-columns: minmax(0,1fr); gap: 6px; }
   .vs { display: none; }
+  /* Let long team names wrap on mobile */
+  .team .name { white-space: normal; text-overflow: clip; }
+  .logo { width: 38px; height: 38px; }
   .roles-grid { grid-template-columns: 1fr 1fr; }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .roles-grid { grid-template-columns: 1fr; }
+  .mini-team .name {
+    /* Two-line clamp for long names in header carousel */
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .mini-logo { width: 24px; height: 24px; }
+  .chip { font-size: 12px; padding: 6px 8px; }
 }
 
 /* Focus ring */
@@ -557,8 +589,8 @@ input:focus-visible {
   gap: 4px;
 }
 .role-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.06);
