@@ -50,7 +50,7 @@
                                     <div class="mini-row">
                                         <div class="mini-team">
                                             <div class="mini-logo">
-                                                <img :src="logoFor(teamNames(m).home)" :alt="teamNames(m).home" :style="!logoFor(teamNames(m).home) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.mini-initials').style.display='grid'">
+                                                <img :src="logoFor(teamNames(m).home)" :alt="teamNames(m).home" referrerpolicy="no-referrer" :style="!logoFor(teamNames(m).home) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.mini-initials').style.display='grid'">
                                                 <div class="mini-initials" :style="logoFor(teamNames(m).home) ? 'display:none' : ''" x-text="initialsFor(teamNames(m).home)"></div>
                                             </div>
                                             <div class="name" x-text="teamNames(m).home"></div>
@@ -59,7 +59,7 @@
                                         <div class="mini-team" style="justify-content:flex-end">
                                             <div class="name" x-text="teamNames(m).away" style="text-align:right"></div>
                                             <div class="mini-logo">
-                                                <img :src="logoFor(teamNames(m).away)" :alt="teamNames(m).away" :style="!logoFor(teamNames(m).away) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.mini-initials').style.display='grid'">
+                                                <img :src="logoFor(teamNames(m).away)" :alt="teamNames(m).away" referrerpolicy="no-referrer" :style="!logoFor(teamNames(m).away) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.mini-initials').style.display='grid'">
                                                 <div class="mini-initials" :style="logoFor(teamNames(m).away) ? 'display:none' : ''" x-text="initialsFor(teamNames(m).away)"></div>
                                             </div>
                                         </div>
@@ -123,7 +123,7 @@
                         <div class="teams">
                             <div class="team">
                                 <div class="logo">
-                                    <img :src="logoFor(teamNames(match).home)" :alt="teamNames(match).home" :style="!logoFor(teamNames(match).home) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.avatar-initials').style.display='grid'">
+                                    <img :src="logoFor(teamNames(match).home)" :alt="teamNames(match).home" referrerpolicy="no-referrer" :style="!logoFor(teamNames(match).home) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.avatar-initials').style.display='grid'">
                                     <div class="avatar-initials" :style="logoFor(teamNames(match).home) ? 'display:none' : ''" x-text="initialsFor(teamNames(match).home)"></div>
                                 </div>
                                 <div class="name" x-text="teamNames(match).home"></div>
@@ -132,7 +132,7 @@
                             <div class="team" style="justify-content:flex-end">
                                 <div class="name" x-text="teamNames(match).away" style="text-align:right"></div>
                                 <div class="logo">
-                                    <img :src="logoFor(teamNames(match).away)" :alt="teamNames(match).away" :style="!logoFor(teamNames(match).away) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.avatar-initials').style.display='grid'">
+                                    <img :src="logoFor(teamNames(match).away)" :alt="teamNames(match).away" referrerpolicy="no-referrer" :style="!logoFor(teamNames(match).away) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.avatar-initials').style.display='grid'">
                                     <div class="avatar-initials" :style="logoFor(teamNames(match).away) ? 'display:none' : ''" x-text="initialsFor(teamNames(match).away)"></div>
                                 </div>
                             </div>
@@ -296,13 +296,20 @@ function seketApp() {
 
         teamNames(match) {
             const s = (match.summary || '').replace(/^match\s*:\s*/i, '').trim();
-            // Fösök hitta "A vs B" eller "A - B"
-            let home = s, away = '';
-            const vsIdx = s.toLowerCase().indexOf(' vs ');
-            const dashIdx = s.indexOf(' - ');
-            if (vsIdx > -1) { home = s.slice(0, vsIdx).trim(); away = s.slice(vsIdx + 4).trim(); }
-            else if (dashIdx > -1) { home = s.slice(0, dashIdx).trim(); away = s.slice(dashIdx + 3).trim(); }
-            return { home, away: away || '—' };
+            // Försök hitta "A vs B", "A - B", "A – B", "A — B" eller "A mot B" (sv)
+            // Hanterar även varianter utan mellanslag runt skiljetecknet.
+            const separators = [
+                /\s+vs\s+/i, /\s+v\s+/i, /\s+mot\s+/i,
+                /\s*-\s*/, /\s*–\s*/, /\s*—\s*/
+            ];
+            for (const sep of separators) {
+                if (sep.test(s)) {
+                    const parts = s.split(sep).map(x => x.trim()).filter(Boolean);
+                    if (parts.length >= 2) return { home: parts[0], away: parts[1] };
+                }
+            }
+            // Fallback: oförändrad sträng som home, streck som away
+            return { home: s, away: '—' };
         },
         initialsFor(name) {
             const words = (name || '').split(/\s+/).filter(Boolean);
@@ -430,14 +437,20 @@ function seketApp() {
                     if (line.startsWith("SUMMARY:")) currentEvent.summary = line.replace("SUMMARY:", "").trim();
                     if (line.startsWith("LOCATION:")) currentEvent.location = line.replace("LOCATION:", "").trim();
                     if (line.startsWith("UID:")) currentEvent.id = line.replace("UID:", "").replace(/[^a-zA-Z0-9]/g, "").trim();
-                    if (line.startsWith("DTSTART:")) {
-                        let rawDate = line.replace("DTSTART:", "").trim();
-                        if(rawDate.includes("T")) {
-                            let y = rawDate.substring(0,4), m = rawDate.substring(4,6), d = rawDate.substring(6,8);
-                            let hh = rawDate.substring(9,11), mm = rawDate.substring(11,13);
-                            currentEvent.start = `${y}-${m}-${d}T${hh}:${mm}:00`;
-                        } else {
-                            currentEvent.start = rawDate;
+                    if (line.startsWith("DTSTART")) {
+                        // Hantera både "DTSTART:..." och "DTSTART;TZID=Europe/Stockholm:..."
+                        const parts = line.split(':');
+                        const value = (parts.length > 1 ? parts[parts.length - 1] : '').trim();
+                        let rawDate = value;
+                        if (rawDate) {
+                            // YYYYMMDD eller YYYYMMDDTHHMM[SS][Z]
+                            const y = rawDate.substring(0,4), m = rawDate.substring(4,6), d = rawDate.substring(6,8);
+                            if (rawDate.includes('T') && rawDate.length >= 13) {
+                                const hh = rawDate.substring(9,11), mm = rawDate.substring(11,13);
+                                currentEvent.start = `${y}-${m}-${d}T${hh}:${mm}:00`;
+                            } else {
+                                currentEvent.start = `${y}-${m}-${d}`;
+                            }
                         }
                     }
                 }
@@ -453,9 +466,67 @@ function seketApp() {
             }
         },
 
-        // Valfria molnmetoder – implementeras vid behov i miljö med backend
-        syncToSupabase: null,
-        loadFromSupabase: null,
+        // Enkla molnmetoder via Supabase REST – aktiveras när nycklar finns i config.js
+        async syncToSupabase(matchId) {
+            if (!this.dbUrl || !this.dbKey) return;
+            try {
+                const data = this.getAssignment(matchId);
+                const payload = [{
+                    match_id: matchId,
+                    team: window.SEKET_TEAM || null,
+                    klocka: data.klocka || null,
+                    ovr: data.ovr || null,
+                    speaker: data.speaker || null,
+                    musik: data.musik || null,
+                    bas1: data.bas1 || null,
+                    bas2: data.bas2 || null,
+                    updated_at: new Date().toISOString()
+                }];
+                await fetch(`${this.dbUrl}/rest/v1/seket_assignments?on_conflict=match_id`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': this.dbKey,
+                        'Authorization': `Bearer ${this.dbKey}`,
+                        'Prefer': 'return=representation,resolution=merge-duplicates'
+                    },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                console.error('Kunde inte synka till molnet:', e);
+            }
+        },
+        async loadFromSupabase() {
+            if (!this.dbUrl || !this.dbKey) return;
+            try {
+                const teamFilter = (window.SEKET_TEAM && window.SEKET_TEAM.trim()) ? `&team=eq.${encodeURIComponent(window.SEKET_TEAM.trim())}` : '';
+                const res = await fetch(`${this.dbUrl}/rest/v1/seket_assignments?select=*&order=updated_at.desc${teamFilter}`, {
+                    headers: {
+                        'apikey': this.dbKey,
+                        'Authorization': `Bearer ${this.dbKey}`
+                    }
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const rows = await res.json();
+                if (Array.isArray(rows)) {
+                    for (const item of rows) {
+                        this.assignments[item.match_id] = {
+                            klocka: item.klocka || '',
+                            ovr: item.ovr || '',
+                            speaker: item.speaker || '',
+                            musik: item.musik || '',
+                            bas1: item.bas1 || '',
+                            bas2: item.bas2 || ''
+                        };
+                    }
+                    // Trigga reaktivitet och spara lokalt
+                    this.assignments = { ...this.assignments };
+                    localStorage.setItem('seket_assignments', JSON.stringify(this.assignments));
+                }
+            } catch (e) {
+                console.error('Kunde inte hämta molndata:', e);
+            }
+        },
 
         exportCSV() {
             let csv = '\uFEFFMatch;Datum;Klocka;OVR;Speaker;Musik;Båsdörr 1;Båsdörr 2\n';
