@@ -3,184 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seket Arc Live - Ishockey</title>
-    <!-- Alpine.js för enkel reaktivitet -->
+    <title>Seket Admin — Ishockey</title>
+    <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <!-- Konfiguration (fyll i site/config.js från config.example.js) -->
-    <script src="./config.js"></script>
-    <!-- Supabase-klient (v2, global window.supabase) -->
+    <!-- Optional Supabase (only used if site/config.js provides keys) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+    <!-- Optional config (not committed) expected to define: SUPABASE_URL, SUPABASE_ANON_KEY, optional SUPABASE_TABLE -->
+    <script src="./config.js"></script>
     <style>
         :root {
-            --primary: #1e3a8a;
-            --primary-light: #2563eb;
-            --background: #f1f5f9;
-            --surface: #ffffff;
-            --text: #0f172a;
-            --border: #e2e8f0;
-            --success: #10b981;
+            --navy: #081836;
+            --navy-700: #0b2148;
+            --accent: #ffd200;
+            --blue: #1158ed;
+            --text: #ffffff;
+            --muted: #b7c1d6;
+            --surface: #0f254d;
+            --surface-2: #132a59;
+            --border: rgba(255,255,255,0.08);
+            --ok: #10b981;
+            --warn: #f59e0b;
         }
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: var(--background);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            background: radial-gradient(1200px 800px at 20% -10%, #0e2a62 0%, #081836 55%, #06122a 100%);
             color: var(--text);
             margin: 0;
-            padding: 16px;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        header {
-            background: var(--primary);
-            color: white;
             padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
-        h1 { margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px; }
-        .subtitle { font-size: 13px; opacity: 0.8; margin-top: 4px; }
-        .card {
-            background: var(--surface);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+        .container { max-width: 1080px; margin: 0 auto; }
+        header.app-header {
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
             border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 18px;
+            margin-bottom: 18px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
         }
-        .grid-config {
+        .brand {
+            display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: .2px;
+        }
+        .brand-logo {
+            width: 28px; height: 28px; border-radius: 6px; background: var(--navy); border: 1px solid var(--border);
+            display: grid; place-items: center; font-size: 16px; color: var(--accent);
+        }
+        .subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+        .header-grid {
             display: grid;
             grid-template-columns: 1fr auto;
             gap: 12px;
-            margin-top: 10px;
+            align-items: center;
         }
-        input, select {
-            padding: 10px;
+        .summary {
+            display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 12px; color: var(--muted);
+        }
+        .pill {
+            display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius: 999px;
+            background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text);
+        }
+        .controls { display: flex; gap: 8px; }
+        .btn {
+            background: var(--blue);
+            color: var(--text);
+            border: 1px solid #0c49c5;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: .2px;
+            transition: transform .06s ease, filter .2s ease, opacity .2s ease;
+        }
+        .btn:hover { filter: brightness(1.05); }
+        .btn:active { transform: translateY(1px); }
+        .btn-secondary { background: var(--surface-2); border-color: var(--border); }
+
+        .card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+        .grid-config { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 8px; }
+        input[type="text"] {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
             font-size: 14px;
             width: 100%;
-            box-sizing: border-box;
+            color: var(--text);
+            background: rgba(255,255,255,0.04);
         }
-        button {
-            background: var(--primary-light);
-            color: white;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            white-space: nowrap;
-            transition: opacity 0.2s;
-        }
-        button:hover { opacity: 0.9; }
-        .btn-secondary { background: #64748b; }
+        input::placeholder { color: #98a2b3; }
+
         .match-card {
-            background: var(--surface);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            border-left: 6px solid var(--primary);
-            border-top: 1px solid var(--border);
-            border-right: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-        }
-        .match-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-        }
-        .match-title { font-size: 16px; font-weight: 700; color: #1e293b; }
-        .match-meta { font-size: 13px; color: #64748b; margin-top: 4px; }
-        .match-time { background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
-        .roles-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-        }
-        .role-box {
-            background: #f8fafc;
-            padding: 12px;
-            border-radius: 8px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
             border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
         }
-        .role-label { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between; }
-        .badge { background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
-        .badge.filled { background: #dcfce7; color: #15803d; }
-        .flex-buttons { display: flex; gap: 8px; margin-top: 12px; }
-        .db-status { font-size: 12px; color: var(--success); font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
-        .header-brand { display:flex; align-items:center; gap:12px; }
-        .header-brand img { height:56px; width:auto; background:#fff; border-radius:8px; padding:4px; }
-        .header-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 14px; }
-        .summary-chip { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 10px 12px; }
-        .summary-chip .label { font-size: 11px; opacity: 0.8; text-transform: uppercase; }
-        .summary-chip .value { font-size: 14px; font-weight: 700; margin-top: 4px; line-height: 1.3; }
+        .match-top {
+            display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+        }
+        .match-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+        .match-time { background: rgba(17,88,237,0.12); color: #a7c5ff; padding: 6px 10px; border-radius: 999px; font-size: 12px; border: 1px solid rgba(17,88,237,0.3); }
+        .matchup {
+            display:flex; align-items:center; justify-content:center; gap: 16px; margin: 14px 0 10px 0;
+        }
+        .team {
+            display:flex; align-items:center; gap: 8px; min-width: 0;
+        }
+        .team img {
+            width: 40px; height: 40px; border-radius: 10px; background: var(--navy-700); border: 1px solid var(--border); object-fit: contain;
+        }
+        .team-name { font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; max-width: 220px; }
+        .vs { color: var(--muted); font-weight: 700; }
+        .roles-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; margin-top: 8px; }
+        .role-box { background: rgba(255,255,255,0.04); padding: 10px; border-radius: 10px; border: 1px solid var(--border); }
+        .role-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; display:flex; justify-content:space-between; }
+        .badge { background: rgba(255,255,255,0.06); color: var(--text); padding: 2px 6px; border-radius: 999px; font-size: 10px; border: 1px solid var(--border); }
+        .badge.filled { background: rgba(16,185,129,0.15); color: #b4f3d9; border-color: rgba(16,185,129,0.4); }
+        .flex-buttons { display:flex; gap:8px; margin-top:8px; }
+        .db-status { font-size: 12px; color: #a8f3c5; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
     </style>
 </head>
 <body>
 
 <div class="container" x-data="seketApp()" x-init="init()">
-    <header>
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div class="header-brand">
-                <img src="./assets/team-logo.png" alt="Värmdö Hockey" onerror="this.onerror=null;this.src='./assets/team-logo-alt.png'">
-                <div>
-                    <h1>🏒 Seket Arc Live</h1>
-                    <div class="subtitle" x-text="isLive ? 'Värmdö Hockey — DELAD databas (Supabase)' : 'Värmdö Hockey — sparas lokalt i webbläsaren'"></div>
+    <header class="app-header">
+        <div class="header-grid">
+            <div>
+                <div class="brand">
+                    <div class="brand-logo">VH</div>
+                    <div>
+                        <div style="font-size:18px;">Seket Admin — Ishockey</div>
+                        <div class="subtitle">Synka SportAdmin matcher, bemanna roller, dela via moln</div>
+                    </div>
                 </div>
+                <div class="summary">
+                    <div class="pill" x-show="nextMatch()">
+                        <span>🏒</span>
+                        <span x-text="nextMatch() ? displayMatchup(nextMatch()) : ''"></span>
+                    </div>
+                    <div class="pill" x-show="matches.length">
+                        📅 <span x-text="`${upcomingCount()} kommande`"></span>
+                    </div>
+                    <div class="pill" x-show="nextMatch()">
+                        👥 <span x-text="`${filledForNext()}/6 funktionärer`"></span>
+                    </div>
+                </div>
+                <div class="db-status" x-show="isLive">✅ Supabase aktiv — delas mellan enheter</div>
+                <div class="db-status" x-show="!isLive" style="color:#b7c1d6;">⚪ Offlineläge — sparas i webbläsaren</div>
             </div>
-            <div class="flex-buttons">
-                <button class="btn-secondary" @click="exportCSV()">Exportera CSV</button>
-            </div>
-        </div>
-        <div class="header-summary">
-            <div class="summary-chip">
-                <div class="label">Nästa match</div>
-                <div class="value" x-html="nextMatchLabel"></div>
-            </div>
-            <div class="summary-chip">
-                <div class="label">Kommande matcher</div>
-                <div class="value" x-text="upcomingCountLabel"></div>
-            </div>
-            <div class="summary-chip">
-                <div class="label">Resurser till nästa</div>
-                <div class="value" x-text="nextResourcesLabel"></div>
+            <div class="controls">
+                <button class="btn btn-secondary" @click="exportCSV()">Exportera CSV</button>
             </div>
         </div>
     </header>
 
-    <!-- Databasstatus / banner -->
-    <div class="card" style="margin-top: 0;">
-        <div class="db-status" x-show="!isLive" style="color:#ef4444;">🔒 Delad databas ej konfigurerad — sparar lokalt i webbläsaren</div>
-        <div class="db-status" x-show="isLive" style="color:#10b981;">🟢 Delad databas aktiv (Supabase)</div>
-    </div>
-
+    <!-- Kalender -->
     <div class="card">
-        <h3 style="margin-top:0; margin-bottom:10px; font-size:16px;">📅 Prenumerationskalender (.ics)</h3>
+        <h3 style="margin:0 0 8px 0; font-size:16px;">📅 Prenumerationskalender (.ics)</h3>
         <div class="grid-config">
-            <input type="text" x-model="icalUrl" placeholder="Klistra in lagets .ics-länk här...">
-            <button @click="fetchCalendar()">Synka matcher</button>
+            <input type="text" x-model="icalUrl" placeholder="Klistra in lagets SportAdmin .ics-länk…">
+            <button class="btn" @click="fetchCalendar()">Synka matcher</button>
         </div>
+        <div class="subtitle" style="margin-top:8px;">Endast händelser som börjar med “Match:” importeras (träning/morgonskills filtreras bort).</div>
     </div>
 
-    <!-- MATCHLISTA -->
+    <!-- Matcher -->
     <div>
-        <h2 style="font-size:18px; margin-bottom:12px; color:#334155;">Matcher & Funktionärer</h2>
+        <h2 style="font-size:18px; margin-bottom:12px;">Matcher & funktionärer</h2>
         
         <template x-for="match in matches" :key="match.id">
             <div class="match-card">
-                <div class="match-header">
+                <div class="match-top">
                     <div>
-                        <div class="match-title" x-text="match.summary"></div>
+                        <div style="font-weight:800;" x-text="displayMatchup(match)"></div>
                         <div class="match-meta" x-text="'📍 ' + (match.location || 'Ej angiven arena')"></div>
                     </div>
                     <div class="match-time" x-text="formatTime(match.start)"></div>
+                </div>
+
+                <div class="matchup">
+                    <div class="team">
+                        <img :src="logoFor(match.homeTeam) || avatarFor(match.homeTeam)" :alt="match.homeTeam">
+                        <div class="team-name" x-text="match.homeTeam || 'Hemma'"></div>
+                    </div>
+                    <div class="vs">vs</div>
+                    <div class="team" style="flex-direction: row-reverse;">
+                        <img :src="logoFor(match.awayTeam) || avatarFor(match.awayTeam)" :alt="match.awayTeam">
+                        <div class="team-name" x-text="match.awayTeam || 'Borta'"></div>
+                    </div>
                 </div>
 
                 <div class="roles-grid">
@@ -190,7 +208,7 @@
                             <span>⏱️ Klocka</span>
                             <span class="badge" :class="getAssignment(match.id).klocka ? 'filled' : ''" x-text="getAssignment(match.id).klocka ? 'Bemannad' : 'Vakant'"></span>
                         </div>
-                        <input type="text" :value="getAssignment(match.id).klocka" @input="saveRole(match.id, 'klocka', $event.target.value)" placeholder="Fyll i namn...">
+                        <input type="text" :value="getAssignment(match.id).klocka" @input="saveRole(match.id, 'klocka', $event.target.value)" placeholder="Fyll i namn…">
                     </div>
 
                     <!-- OVR -->
@@ -199,7 +217,7 @@
                             <span>💻 OVR Protokoll</span>
                             <span class="badge" :class="getAssignment(match.id).ovr ? 'filled' : ''" x-text="getAssignment(match.id).ovr ? 'Bemannad' : 'Vakant'"></span>
                         </div>
-                        <input type="text" :value="getAssignment(match.id).ovr" @input="saveRole(match.id, 'ovr', $event.target.value)" placeholder="Fyll i namn...">
+                        <input type="text" :value="getAssignment(match.id).ovr" @input="saveRole(match.id, 'ovr', $event.target.value)" placeholder="Fyll i namn…">
                     </div>
 
                     <!-- SPEAKER -->
@@ -208,7 +226,7 @@
                             <span>🎙️ Speaker</span>
                             <span class="badge" :class="getAssignment(match.id).speaker ? 'filled' : ''" x-text="getAssignment(match.id).speaker ? 'Bemannad' : 'Vakant'"></span>
                         </div>
-                        <input type="text" :value="getAssignment(match.id).speaker" @input="saveRole(match.id, 'speaker', $event.target.value)" placeholder="Fyll i namn...">
+                        <input type="text" :value="getAssignment(match.id).speaker" @input="saveRole(match.id, 'speaker', $event.target.value)" placeholder="Fyll i namn…">
                     </div>
 
                     <!-- MUSIK -->
@@ -217,7 +235,7 @@
                             <span>🎵 Musik</span>
                             <span class="badge" :class="getAssignment(match.id).musik ? 'filled' : ''" x-text="getAssignment(match.id).musik ? 'Bemannad' : 'Vakant'"></span>
                         </div>
-                        <input type="text" :value="getAssignment(match.id).musik" @input="saveRole(match.id, 'musik', $event.target.value)" placeholder="Fyll i namn...">
+                        <input type="text" :value="getAssignment(match.id).musik" @input="saveRole(match.id, 'musik', $event.target.value)" placeholder="Fyll i namn…">
                     </div>
 
                     <!-- BÅSDÖRR 1 -->
@@ -226,7 +244,7 @@
                             <span>🚪 Båsdörr 1</span>
                             <span class="badge" :class="getAssignment(match.id).bas1 ? 'filled' : ''" x-text="getAssignment(match.id).bas1 ? 'Bemannad' : 'Vakant'"></span>
                         </div>
-                        <input type="text" :value="getAssignment(match.id).bas1" @input="saveRole(match.id, 'bas1', $event.target.value)" placeholder="Fyll i namn...">
+                        <input type="text" :value="getAssignment(match.id).bas1" @input="saveRole(match.id, 'bas1', $event.target.value)" placeholder="Fyll i namn…">
                     </div>
 
                     <!-- BÅSDÖRR 2 -->
@@ -235,7 +253,7 @@
                             <span>🚪 Båsdörr 2</span>
                             <span class="badge" :class="getAssignment(match.id).bas2 ? 'filled' : ''" x-text="getAssignment(match.id).bas2 ? 'Bemannad' : 'Vakant'"></span>
                         </div>
-                        <input type="text" :value="getAssignment(match.id).bas2" @input="saveRole(match.id, 'bas2', $event.target.value)" placeholder="Fyll i namn...">
+                        <input type="text" :value="getAssignment(match.id).bas2" @input="saveRole(match.id, 'bas2', $event.target.value)" placeholder="Fyll i namn…">
                     </div>
                 </div>
             </div>
@@ -246,221 +264,319 @@
 <script>
 function seketApp() {
     return {
+        // State
         icalUrl: '',
         isLive: false,
-        supabase: null,
-        team: '',
-        get upcomingMatches() {
-            const now = new Date(Date.now() - 2 * 60 * 60 * 1000);
-            return (this.matches || [])
-                .map(m => ({ m, d: new Date(m.start) }))
-                .filter(x => !isNaN(x.d) && x.d >= now)
-                .sort((a, b) => a.d - b.d)
-                .map(x => x.m);
-        },
-        get nextMatch() { return this.upcomingMatches[0] || null; },
-        get nextMatchLabel() {
-            const m = this.nextMatch;
-            if (!m) return this.matches.length ? 'Ingen kommande' : 'Inga matcher synkade';
-            const d = new Date(m.start);
-            const when = isNaN(d) ? (m.start || '') : d.toLocaleString('sv-SE', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            return `${m.summary}<br><span style="font-weight:500;opacity:.9">${when}</span>`;
-        },
-        get upcomingCountLabel() {
-            return `${this.upcomingMatches.length || this.matches.length} st`;
-        },
-        get nextResourcesLabel() {
-            const m = this.nextMatch;
-            if (!m) return '0/6 ifyllda';
-            const a = this.getAssignment(m.id);
-            const filled = [a.klocka, a.ovr, a.speaker, a.musik, a.bas1, a.bas2].filter(Boolean).length;
-            return `${filled}/6 ifyllda`;
-        },
-        matches: [
-            { id: "demo-1", summary: "A-lag HC vs Derby IK", start: "2026-10-12T19:00:00", location: "Hemmarinken Ishall" },
-            { id: "demo-2", summary: "A-lag HC vs Östkust Wizards", start: "2026-10-19T19:30:00", location: "Hemmarinken Ishall" },
-            { id: "demo-3", summary: "A-lag HC vs Lappland Titans", start: "2026-11-02T16:00:00", location: "Hemmarinken Ishall" }
-        ],
+        matches: [],
         assignments: {},
+        teamLogos: {},
+        supabaseClient: null,
+        dbTable: 'assignments',
 
-        init() {
-            // Ladda sparad konfig från localStorage vid start
-            this.icalUrl = localStorage.getItem('seket_ical_url') || 'https://portalweb.sportadmin.se/webcal?id=0e4dee57-db8d-4d2a-af08-e4dd1990fc4a';
-            this.team = (typeof window.SEKET_TEAM === 'string' ? window.SEKET_TEAM : '') || '';
-            
+        // Init
+        async init() {
+            // Config + persisted state
+            this.icalUrl = localStorage.getItem('seket_ical_url') || '';
             const savedMatches = localStorage.getItem('seket_matches');
-            if (savedMatches) this.matches = JSON.parse(savedMatches);
-
+            if (savedMatches) {
+                try { this.matches = JSON.parse(savedMatches) || []; } catch {}
+            }
             const savedAssignments = localStorage.getItem('seket_assignments');
-            if (savedAssignments) this.assignments = JSON.parse(savedAssignments);
+            if (savedAssignments) {
+                try { this.assignments = JSON.parse(savedAssignments) || {}; } catch {}
+            }
 
-            // Initiera Supabase om config finns
-            const url = (typeof window.SEKET_SUPABASE_URL === 'string' && window.SEKET_SUPABASE_URL.trim()) ? window.SEKET_SUPABASE_URL.trim() : '';
-            const key = (typeof window.SEKET_SUPABASE_ANON_KEY === 'string' && window.SEKET_SUPABASE_ANON_KEY.trim()) ? window.SEKET_SUPABASE_ANON_KEY.trim() : '';
-            if (url && key && window.supabase && window.supabase.createClient) {
-                this.supabase = window.supabase.createClient(url, key);
-                this.isLive = true;
-                this.loadFromSupabase();
-            } else {
-                this.isLive = false; // offline-only
+            // Load logos map
+            this.loadTeamLogos();
+            // Enrich matches with team parsing
+            this.enrichMatches();
+
+            // Optional Supabase
+            try {
+                const url = (window.SEKET_SUPABASE_URL || window.SUPABASE_URL || '').trim();
+                const key = (window.SEKET_SUPABASE_ANON_KEY || window.SUPABASE_ANON_KEY || '').trim();
+                const table = (window.SUPABASE_TABLE || '').trim();
+                if (table) this.dbTable = table;
+                if (url && key && window.supabase) {
+                    this.supabaseClient = window.supabase.createClient(url, key);
+                    this.isLive = true;
+                    await this.loadFromSupabase();
+                }
+            } catch (e) {
+                console.warn('Supabase init failed (offlineläge):', e);
             }
         },
 
+        // Derived
+        nextMatch() {
+            const now = new Date();
+            const upcoming = this.matches
+                .filter(m => m.start && !isNaN(new Date(m.start).getTime()) && new Date(m.start) >= now)
+                .sort((a,b) => new Date(a.start) - new Date(b.start));
+            return upcoming[0] || null;
+        },
+        upcomingCount() {
+            const now = new Date();
+            return this.matches.filter(m => m.start && !isNaN(new Date(m.start).getTime()) && new Date(m.start) >= now).length;
+        },
+        filledForNext() {
+            const m = this.nextMatch();
+            if (!m) return 0;
+            const a = this.getAssignment(m.id);
+            return [a.klocka, a.ovr, a.speaker, a.musik, a.bas1, a.bas2].filter(Boolean).length;
+        },
+
+        // UI helpers
+        formatTime(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const day = d.toLocaleDateString('sv-SE', { weekday: 'short', month: 'short', day: 'numeric' });
+            const time = d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+            return `${day} kl. ${time}`;
+        },
+        displayMatchup(m) {
+            const left = m.homeTeam || 'Hemma';
+            const right = m.awayTeam || 'Borta';
+            return `${left} vs ${right}`;
+        },
+
+        // Assignments
         getAssignment(matchId) {
             if (!this.assignments[matchId]) {
                 this.assignments[matchId] = { klocka: '', ovr: '', speaker: '', musik: '', bas1: '', bas2: '' };
             }
             return this.assignments[matchId];
         },
-
-        saveRole(matchId, role, value) {
+        async saveRole(matchId, role, value) {
             this.getAssignment(matchId)[role] = value;
             localStorage.setItem('seket_assignments', JSON.stringify(this.assignments));
-
-            if (this.isLive) {
-                this.syncToSupabase(matchId);
+            if (this.isLive && this.supabaseClient) {
+                await this.syncToSupabase(matchId);
             }
         },
 
-        formatTime(dateStr) {
-            if (!dateStr) return '';
-            const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return dateStr;
-            return d.toLocaleDateString('sv-SE', { weekday: 'short', month: 'short', day: 'numeric' }) + ' kl. ' + d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+        // Team logos
+        async loadTeamLogos() {
+            try {
+                const res = await fetch('assets/team-logos.json', { cache: 'no-store' });
+                if (res.ok) this.teamLogos = await res.json();
+            } catch (e) {
+                console.warn('Kunde inte läsa team-logos.json', e);
+            }
+        },
+        normalizeForKey(name) {
+            return (name || '')
+                .toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9/ ]/g, '')
+                .trim();
+        },
+        logoFor(name) {
+            const key = this.normalizeForKey(name);
+            if (!key) return '';
+            // direct match
+            if (this.teamLogos[key]) return this.teamLogos[key];
+            // fragment match
+            const entry = Object.entries(this.teamLogos).find(([k]) => key.includes(k));
+            return entry ? entry[1] : '';
+        },
+        initialsFrom(name) {
+            if (!name) return 'HC';
+            const words = name.split(/\s+/).filter(Boolean);
+            const letters = words.length >= 2 ? (words[0][0] + words[1][0]) : name.slice(0, 2);
+            return letters.toUpperCase();
+        },
+        avatarFor(name) {
+            const initials = this.initialsFrom(name);
+            const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+  <rect width="40" height="40" rx="10" ry="10" fill="#081836"/>
+  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="14" font-weight="800" fill="#ffd200">${initials}</text>
+</svg>`;
+            return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
         },
 
+        // Match parsing/enrichment
+        parseTeams(summary) {
+            if (!summary) return { homeTeam: '', awayTeam: '' };
+            // Remove leading "Match:" and trailing parens
+            let s = summary.replace(/^match\s*:\s*/i, '').trim();
+            s = s.replace(/\(.+?\)\s*$/, '').trim();
+            // Common separators: " - " or "vs" or " – "
+            let parts = s.split(/\s+-\s+| vs | – /i);
+            if (parts.length < 2) {
+                // fallback: try last ' - '
+                const idx = s.lastIndexOf('-');
+                if (idx !== -1) parts = [s.slice(0, idx), s.slice(idx + 1)];
+            }
+            const homeTeam = (parts[0] || '').trim();
+            const awayTeam = (parts[1] || '').trim();
+            return { homeTeam, awayTeam };
+        },
+        enrichMatches() {
+            this.matches = (this.matches || []).map(m => {
+                const { homeTeam, awayTeam } = this.parseTeams(m.summary || '');
+                return { ...m, homeTeam, awayTeam };
+            });
+        },
+
+        // ICS fetch (robust) + filter matches only
         async fetchCalendar() {
             if (!this.icalUrl) {
-                alert("Skriv in en giltig .ics kalenderlänk först.");
+                alert("Skriv in en giltig .ics-kalenderlänk först.");
                 return;
             }
             localStorage.setItem('seket_ical_url', this.icalUrl);
-
             try {
-                // Använd en gratis CORS-proxy för klientbaserad iCal-hämtning
-                let url = this.icalUrl.trim();
-                if (url.startsWith('webcal://')) url = url.replace('webcal://', 'https://');
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-                const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error('HTTP ' + response.status);
-                let icsText = await response.text();
-                if (!icsText.includes('BEGIN:VCALENDAR')) {
-                    const getRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
-                    const data = await getRes.json();
-                    let contents = data.contents || '';
-                    if (contents.startsWith('data:')) {
-                        const comma = contents.indexOf(',');
-                        const meta = contents.slice(0, comma);
-                        const payload = contents.slice(comma + 1);
-                        contents = /;base64/i.test(meta) ? decodeURIComponent(escape(atob(payload))) : decodeURIComponent(payload);
-                    }
-                    icsText = contents;
+                const ics = await this.fetchIcsText(this.icalUrl.trim());
+                const parsed = this.parseRobustICS(ics);
+                if (parsed.length === 0) {
+                    alert("Hittade inga matcher i kalendern (träningar/morgonskills filtreras bort).");
+                    return;
                 }
-                this.parseICS(icsText);
-            } catch (error) {
+                this.matches = parsed;
+                this.enrichMatches();
+                localStorage.setItem('seket_matches', JSON.stringify(this.matches));
+                alert(`Hittade och synkade ${parsed.length} matcher!`);
+            } catch (e) {
+                console.error(e);
                 alert("Kunde inte hämta kalendern via proxy. Dubbelkolla länken.");
             }
         },
-
-        parseICS(icsText) {
-            const lines = icsText.split(/\r?\n/);
-            let currentEvent = null;
-            const parsedMatches = [];
-
-            lines.forEach(line => {
-                if (line.startsWith("BEGIN:VEVENT")) {
-                    currentEvent = {};
-                } else if (line.startsWith("END:VEVENT")) {
-                    if (currentEvent && currentEvent.summary) {
-                        const s = currentEvent.summary.trim();
+        async fetchIcsText(url) {
+            let u = url;
+            if (u.startsWith('webcal://')) u = u.replace('webcal://', 'https://');
+            const proxies = [
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+                'https://api.allorigins.win/get?url=' + encodeURIComponent(u)
+            ];
+            let lastErr;
+            for (const p of proxies) {
+                try {
+                    const res = await fetch(p);
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    if (p.includes('/get?')) {
+                        const data = await res.json();
+                        const text = this.decodeIcsPayload(data.contents || '');
+                        if (text.includes('BEGIN:VCALENDAR')) return text;
+                    } else {
+                        const text = await res.text();
+                        if (text.includes('BEGIN:VCALENDAR')) return text;
+                    }
+                } catch (e) { lastErr = e; }
+            }
+            throw lastErr || new Error('proxy failed');
+        },
+        decodeIcsPayload(contents) {
+            if (!contents) return '';
+            if (contents.startsWith('data:')) {
+                const comma = contents.indexOf(',');
+                const meta = contents.slice(0, comma);
+                const data = contents.slice(comma + 1);
+                if (/;base64/i.test(meta)) {
+                    try { return decodeURIComponent(escape(atob(data))); } catch { return atob(data); }
+                }
+                return decodeURIComponent(data);
+            }
+            return contents;
+        },
+        parseRobustICS(icsText) {
+            const cleanText = icsText.replace(/^﻿/, '');
+            const unfolded = cleanText.replace(/\r?\n[ \t]/g, '');
+            const lines = unfolded.split(/\r?\n/);
+            const out = [];
+            let ev = null;
+            for (const raw of lines) {
+                const line = (raw || '').trim();
+                if (!line) continue;
+                if (line.startsWith('BEGIN:VEVENT')) {
+                    ev = { id: '', summary: '', start: '', location: '' };
+                } else if (line.startsWith('END:VEVENT')) {
+                    if (ev && ev.summary) {
+                        const s = ev.summary.trim();
                         const sl = s.toLowerCase();
                         const isTraining = sl.includes('träning') || sl.includes('traning') || sl.includes('morgonskills') || sl.includes('extrapass') || sl.includes('frivilligt');
                         const isMatch = !isTraining && (/^match\s*:/i.test(s) || /\bmatch\b/i.test(s));
-                        if (isMatch) parsedMatches.push(currentEvent);
+                        if (isMatch) out.push(ev);
                     }
-                    currentEvent = null;
-                } else if (currentEvent) {
-                    if (line.startsWith("SUMMARY:")) currentEvent.summary = line.replace("SUMMARY:", "").trim();
-                    if (line.startsWith("LOCATION:")) currentEvent.location = line.replace("LOCATION:", "").trim();
-                    if (line.startsWith("UID:")) currentEvent.id = line.replace("UID:", "").replace(/[^a-zA-Z0-9]/g, "").trim();
-                    if (line.startsWith("DTSTART:")) {
-                        let rawDate = line.replace("DTSTART:", "").trim();
-                        if(rawDate.includes("T")) {
-                            let y = rawDate.substring(0,4), m = rawDate.substring(4,6), d = rawDate.substring(6,8);
-                            let hh = rawDate.substring(9,11), mm = rawDate.substring(11,13);
-                            currentEvent.start = `${y}-${m}-${d}T${hh}:${mm}:00`;
-                        } else {
-                            currentEvent.start = rawDate;
-                        }
+                    ev = null;
+                } else if (ev) {
+                    const idx = line.indexOf(':');
+                    if (idx === -1) continue;
+                    const keyPart = line.substring(0, idx);
+                    let value = line.substring(idx + 1).trim();
+                    value = value.replace(/\\,/g, ',').replace(/\\;/g, ';');
+                    if (keyPart.startsWith('SUMMARY')) {
+                        ev.summary = value;
+                    } else if (keyPart.startsWith('LOCATION')) {
+                        ev.location = value;
+                    } else if (keyPart.startsWith('UID')) {
+                        ev.id = value.replace(/[^a-zA-Z0-9]/g, '');
+                    } else if (keyPart.startsWith('DTSTART')) {
+                        ev.start = this.toIsoLocal(value);
                     }
                 }
-            });
-
-            if (parsedMatches.length > 0) {
-                this.matches = parsedMatches;
-                localStorage.setItem('seket_matches', JSON.stringify(this.matches));
-                alert(`Hittade och synkade ${parsedMatches.length} matcher!`);
-            } else {
-                alert("Kunde inte läsa några matcher från iCal-filen.");
             }
+            return out;
+        },
+        toIsoLocal(raw) {
+            // Handles YYYYMMDD or DTSTART;TZID=...:YYYYMMDDTHHMMSS
+            let v = raw;
+            if (v.includes(':')) v = v.split(':').pop();
+            if (!v || v.length < 8) return raw;
+            const y = v.substring(0,4), m = v.substring(4,6), d = v.substring(6,8);
+            if (v.includes('T') && v.length >= 13) {
+                const hh = v.substring(9,11), mm = v.substring(11,13);
+                return `${y}-${m}-${d}T${hh}:${mm}:00`;
+            }
+            return `${y}-${m}-${d}T00:00:00`;
         },
 
-        async syncToSupabase(matchId) {
-            if (!this.supabase) return;
-            const data = this.getAssignment(matchId);
-            try {
-                const payload = {
-                    match_id: matchId,
-                    team: this.team || null,
-                    klocka: data.klocka || null,
-                    ovr: data.ovr || null,
-                    speaker: data.speaker || null,
-                    musik: data.musik || null,
-                    bas1: data.bas1 || null,
-                    bas2: data.bas2 || null,
-                    updated_at: new Date().toISOString()
-                };
-                const { error } = await this.supabase
-                    .from('seket_assignments')
-                    .upsert(payload, { onConflict: 'match_id' });
-                if (error) throw error;
-            } catch (e) {
-                console.error("Kunde inte synka till Supabase:", e);
-            }
-        },
-
+        // Supabase I/O (optional)
         async loadFromSupabase() {
-            if (!this.supabase) return;
             try {
-                let query = this.supabase.from('seket_assignments').select('*');
-                if (this.team) query = query.eq('team', this.team);
-                const { data, error } = await query;
+                const { data, error } = await this.supabaseClient.from(this.dbTable).select('*');
                 if (error) throw error;
                 if (Array.isArray(data)) {
-                    data.forEach(item => {
-                        this.assignments[item.match_id] = {
-                            klocka: item.klocka || '',
-                            ovr: item.ovr || '',
-                            speaker: item.speaker || '',
-                            musik: item.musik || '',
-                            bas1: item.bas1 || '',
-                            bas2: item.bas2 || ''
+                    data.forEach(row => {
+                        const id = row.match_id || row.id || '';
+                        if (!id) return;
+                        this.assignments[id] = {
+                            klocka: row.klocka || '',
+                            ovr: row.ovr || '',
+                            speaker: row.speaker || '',
+                            musik: row.musik || '',
+                            bas1: row.bas1 || '',
+                            bas2: row.bas2 || ''
                         };
                     });
                     localStorage.setItem('seket_assignments', JSON.stringify(this.assignments));
                 }
             } catch (e) {
-                console.error("Kunde inte hämta data från Supabase:", e);
+                console.warn('Kunde inte hämta från Supabase (fortsätter offline):', e.message || e);
+                this.isLive = false;
+            }
+        },
+        async syncToSupabase(matchId) {
+            try {
+                const a = this.getAssignment(matchId);
+                const payload = { match_id: matchId, ...a, updated_at: new Date().toISOString() };
+                const { error } = await this.supabaseClient.from(this.dbTable).upsert(payload, { onConflict: 'match_id' });
+                if (error) throw error;
+            } catch (e) {
+                console.warn('Kunde inte synka till Supabase:', e.message || e);
             }
         },
 
+        // Export
         exportCSV() {
-            let csv = '\uFEFFMatch;Datum;Klocka;OVR;Speaker;Musik;Båsdörr 1;Båsdörr 2\n';
+            let csv = '\uFEFFMatch;Datum;Plats;Klocka;OVR;Speaker;Musik;Båsdörr 1;Båsdörr 2\n';
             this.matches.forEach(m => {
-                let a = this.assignments[m.id] || {};
-                csv += `"${m.summary}";"${this.formatTime(m.start)}";"${a.klocka || ''}";"${a.ovr || ''}";"${a.speaker || ''}";"${a.musik || ''}";"${a.bas1 || ''}";"${a.bas2 || ''}"\n`;
+                const a = this.assignments[m.id] || {};
+                const when = this.formatTime(m.start);
+                csv += `"${m.summary}";"${when}";"${m.location || ''}";"${a.klocka || ''}";"${a.ovr || ''}";"${a.speaker || ''}";"${a.musik || ''}";"${a.bas1 || ''}";"${a.bas2 || ''}"\n`;
             });
-            
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
@@ -470,7 +586,7 @@ function seketApp() {
             document.body.removeChild(link);
         }
     }
-}
+ }
 </script>
 
 </body>
