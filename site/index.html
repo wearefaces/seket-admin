@@ -295,10 +295,18 @@ function seketApp() {
         },
 
         getAssignment(matchId) {
-            if (!this.assignments[matchId]) {
-                this.assignments[matchId] = { klocka: '', ovr: '', speaker: '', musik: '', bas1: '', bas2: '' };
+            // Always resolve via sanitized id and migrate any legacy/raw keys
+            const rawId = (matchId || '').toString();
+            const id = this.sanitizeMatchId(rawId);
+            // Migrate from unsanitized key if present (older localStorage entries)
+            if (rawId !== id && this.assignments[rawId] && !this.assignments[id]) {
+                this.assignments[id] = this.assignments[rawId];
+                try { delete this.assignments[rawId]; } catch(_) {}
             }
-            return this.assignments[matchId];
+            if (!this.assignments[id]) {
+                this.assignments[id] = { klocka: '', ovr: '', speaker: '', musik: '', bas1: '', bas2: '' };
+            }
+            return this.assignments[id];
         },
 
         saveRole(matchId, role, value) {
@@ -424,12 +432,12 @@ function seketApp() {
         },
         nextFilledCount() {
             if (!this.nextId) return 0;
-            const a = this.assignments[this.nextId] || {};
+            const a = this.getAssignment(this.nextId);
             return ['klocka','ovr','speaker','musik','bas1','bas2'].reduce((n,k)=>n + (a[k] ? 1 : 0), 0);
         },
         roleKeys() { return ['klocka','ovr','speaker','musik','bas1','bas2']; },
         filledCount(match) {
-            const a = this.assignments[match.id] || {};
+            const a = this.getAssignment(match.id);
             return this.roleKeys().reduce((n, k) => n + (a[k] ? 1 : 0), 0);
         },
         openCount(match) {
@@ -655,7 +663,7 @@ function seketApp() {
         exportCSV() {
             let csv = '\uFEFFMatch;Datum;Klocka;OVR;Speaker;Musik;Båsdörr 1;Båsdörr 2\n';
             this.matches.forEach(m => {
-                let a = this.assignments[m.id] || {};
+                let a = this.getAssignment(m.id);
                 csv += `"${m.summary}";"${this.formatTime(m.start)}";"${a.klocka || ''}";"${a.ovr || ''}";"${a.speaker || ''}";"${a.musik || ''}";"${a.bas1 || ''}";"${a.bas2 || ''}"\n`;
             });
             
