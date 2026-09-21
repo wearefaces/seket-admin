@@ -207,6 +207,9 @@ function seketApp() {
         teamLogos: {},
         nextId: null,
         nextThree: [],
+        sanitizeMatchId(raw) {
+            return (raw || '').toString().replace(/[^a-zA-Z0-9]/g, '').trim();
+        },
         matches: [
             { id: "demo-1", summary: "A-lag HC vs Derby IK", start: "2026-10-12T19:00:00", location: "Hemmarinken Ishall" },
             { id: "demo-2", summary: "A-lag HC vs Östkust Wizards", start: "2026-10-19T19:30:00", location: "Hemmarinken Ishall" },
@@ -272,6 +275,8 @@ function seketApp() {
             if (this.isLive && typeof this.syncToSupabase === 'function') {
                 this.syncToSupabase(matchId);
             }
+            // Säkerställ reaktiv uppdatering för headerchip
+            this.assignments = { ...this.assignments };
         },
 
         connectDB() {
@@ -302,14 +307,19 @@ function seketApp() {
                 /\s+vs\s+/i, /\s+v\s+/i, /\s+mot\s+/i,
                 /\s*-\s*/, /\s*–\s*/, /\s*—\s*/
             ];
+            const cleanName = (t) => (t || '')
+                // ta bort parentes-/hakparentes-info: (U12...), [Div 1 ...]
+                .replace(/[\(\[][^\)\]]*[\)\]]/g, '')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
             for (const sep of separators) {
                 if (sep.test(s)) {
                     const parts = s.split(sep).map(x => x.trim()).filter(Boolean);
-                    if (parts.length >= 2) return { home: parts[0], away: parts[1] };
+                    if (parts.length >= 2) return { home: cleanName(parts[0]), away: cleanName(parts[1]) };
                 }
             }
             // Fallback: oförändrad sträng som home, streck som away
-            return { home: s, away: '—' };
+            return { home: cleanName(s), away: '—' };
         },
         initialsFor(name) {
             const words = (name || '').split(/\s+/).filter(Boolean);
@@ -322,8 +332,8 @@ function seketApp() {
             const noDia = lc.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const plain = noDia.replace(/[.,/#!$%^&*;:{}=_'’"~()]/g, ' ').replace(/\s+/g, ' ').trim();
             const tokens = plain.split(' ').filter(Boolean);
-            const stop = new Set(['ik','if','hc','bk','hk','hf','sk','aik','dif']);
-            const reduced = tokens.filter(t => !stop.has(t)).join(' ');
+            const stop = new Set(['ik','if','hc','bk','hk','hf','sk','aik','dif','hockey','ishockey','ifk','is']);
+            const reduced = tokens.filter(t => !stop.has(t) && !/^u\d{1,2}$/.test(t)).join(' ');
             const candidates = [
                 lc, noDia, plain, reduced,
                 tokens.join(' '),
@@ -436,7 +446,7 @@ function seketApp() {
                 } else if (currentEvent) {
                     if (line.startsWith("SUMMARY:")) currentEvent.summary = line.replace("SUMMARY:", "").trim();
                     if (line.startsWith("LOCATION:")) currentEvent.location = line.replace("LOCATION:", "").trim();
-                    if (line.startsWith("UID:")) currentEvent.id = line.replace("UID:", "").replace(/[^a-zA-Z0-9]/g, "").trim();
+                    if (line.startsWith("UID:")) currentEvent.id = this.sanitizeMatchId(line.replace("UID:", ""));
                     if (line.startsWith("DTSTART")) {
                         // Hantera både "DTSTART:..." och "DTSTART;TZID=Europe/Stockholm:..."
                         const parts = line.split(':');
@@ -510,7 +520,8 @@ function seketApp() {
                 const rows = await res.json();
                 if (Array.isArray(rows)) {
                     for (const item of rows) {
-                        this.assignments[item.match_id] = {
+                        const normId = this.sanitizeMatchId(item.match_id);
+                        this.assignments[normId] = {
                             klocka: item.klocka || '',
                             ovr: item.ovr || '',
                             speaker: item.speaker || '',
