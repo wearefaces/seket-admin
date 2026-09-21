@@ -17,7 +17,7 @@
     <header class="app-header">
         <div class="app-header-inner">
             <div class="brand">
-                <div class="brand-badge">V</div>
+                <div class="brand-badge">VH</div>
                 <div class="brand-title">
                     <div class="title">Värmdö – Seket Admin</div>
                     <div class="subtitle">Ishockey • Sekretariat • Kalender</div>
@@ -37,9 +37,7 @@
                     <span x-text="nextFilledCount() + '/6'"></span>
                 </div>
             </div>
-            <div class="header-actions">
-                <button class="btn btn-quiet" @click="exportCSV()">Exportera CSV</button>
-            </div>
+            <!-- rent sticky header; export flyttad till statusbannern -->
         </div>
     </header>
 
@@ -63,13 +61,17 @@
         <p class="section-description">Klistra in lagets prenumerationslänk från SportAdmin eller annan kalender.</p>
         <div class="config-grid">
             <input type="text" x-model="icalUrl" placeholder="https://...kalender.ics" inputmode="url">
-            <button class="btn btn-primary" @click="fetchCalendar()">Synka matcher</button>
+            <button class="btn btn-primary" @click="fetchCalendar()" :disabled="isLoading" :aria-busy="isLoading" x-text="isLoading ? 'Synkar…' : 'Synka matcher'"></button>
         </div>
     </div>
 
     <!-- MATCHLISTA -->
     <div>
         <h2 class="list-title">Matcher & Funktionärer</h2>
+        <div class="loading-state" x-show="isLoading" style="display:none">
+            <span class="loading-spinner" aria-hidden="true"></span>
+            <span>Laddar matcher…</span>
+        </div>
         <div class="empty-state" x-show="matches.length === 0" style="display:none">
             Inga matcher inlästa. Synka ovan för att börja.
         </div>
@@ -159,6 +161,7 @@ function seketApp() {
     return {
         icalUrl: '',
         isLive: false,
+        isLoading: false,
         dbUrl: null,
         dbKey: null,
         teamLogos: {},
@@ -293,8 +296,10 @@ function seketApp() {
         },
 
         async fetchCalendar() {
+            this.isLoading = true;
             if (!this.icalUrl) {
                 alert("Skriv in en giltig .ics kalenderlänk först.");
+                this.isLoading = false;
                 return;
             }
             localStorage.setItem('seket_ical_url', this.icalUrl);
@@ -323,6 +328,8 @@ function seketApp() {
                 this.computeNext();
             } catch (error) {
                 alert("Kunde inte hämta kalendern via proxy. Dubbelkolla länken.");
+            } finally {
+                this.isLoading = false;
             }
         },
 
