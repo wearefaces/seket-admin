@@ -75,7 +75,7 @@
                                         </div>
                                         <div class="mini-role-dots" role="img" :aria-label="openCount(m) === 0 ? 'Alla roller bemannade' : (openCount(m) + ' roller vakanta')">
                                             <template x-for="rk in roleKeys()" :key="rk">
-                                                <span class="role-dot" :class="getAssignment(m.id)[rk] ? 'filled' : 'open'" :title="rk"></span>
+                                                <span class="role-dot" :class="roleFilled(m.id, rk) ? 'filled' : 'open'" :title="rk"></span>
                                             </template>
                                         </div>
                                     </div>
@@ -228,6 +228,8 @@ function seketApp() {
         icalUrl: '',
         isLive: false,
         isLoading: false,
+        // Revision bump to ensure Alpine reactivity across header counters/dots
+        assignmentsRev: 0,
         dbUrl: null,
         dbKey: null,
         teamLogos: {},
@@ -258,7 +260,12 @@ function seketApp() {
             if (savedMatches) this.matches = JSON.parse(savedMatches);
 
             const savedAssignments = localStorage.getItem('seket_assignments');
-            if (savedAssignments) this.assignments = JSON.parse(savedAssignments);
+            if (savedAssignments) {
+                this.assignments = JSON.parse(savedAssignments);
+                // Normalize to a fresh object and bump rev so dependent bindings update
+                this.assignments = { ...this.assignments };
+                this.assignmentsRev++;
+            }
 
             // Läs ev. config.js (stöder både SEKet_* och utan prefix)
             this.dbUrl = window.SEKET_SUPABASE_URL || window.SUPABASE_URL || localStorage.getItem('seket_db_url') || null;
@@ -324,6 +331,7 @@ function seketApp() {
             }
             // Säkerställ reaktiv uppdatering för headerchip
             this.assignments = { ...this.assignments };
+            this.assignmentsRev++;
         },
 
         showDbStatus(msg, type) {
@@ -468,14 +476,24 @@ function seketApp() {
             }).length;
         },
         nextFilledCount() {
+            // Touch rev to ensure Alpine tracks updates from nested assignment changes
+            const _ = this.assignmentsRev;
             if (!this.nextId) return 0;
             const a = this.getAssignment(this.nextId);
             return ['klocka','ovr','speaker','musik','bas1','bas2'].reduce((n,k)=>n + (a[k] ? 1 : 0), 0);
         },
         roleKeys() { return ['klocka','ovr','speaker','musik','bas1','bas2']; },
         filledCount(match) {
+            // Touch rev to ensure Alpine tracks updates even when only nested fields change
+            const _ = this.assignmentsRev;
             const a = this.getAssignment(match.id);
             return this.roleKeys().reduce((n, k) => n + (a[k] ? 1 : 0), 0);
+        },
+        roleFilled(matchId, roleKey) {
+            // Depend on revision so header dot classes update immediately
+            const _ = this.assignmentsRev;
+            const a = this.getAssignment(matchId);
+            return !!(a && a[roleKey]);
         },
         openCount(match) {
             return this.roleKeys().length - this.filledCount(match);
@@ -692,6 +710,7 @@ function seketApp() {
                     }
                     // Trigga reaktivitet och spara lokalt
                     this.assignments = { ...this.assignments };
+                    this.assignmentsRev++;
                     localStorage.setItem('seket_assignments', JSON.stringify(this.assignments));
                 }
             } catch (e) {
