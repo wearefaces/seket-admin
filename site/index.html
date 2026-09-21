@@ -102,6 +102,21 @@
                 ⚪ <strong>Lokalt läge</strong> — sparar i webbläsaren. Lägg till <code>config.js</code> för delning.
             </span>
         </div>
+        <!-- Molnstatus för att undvika tysta fel vid skrivning -->
+        <div x-show="dbStatusMsg" x-transition
+             :class="`banner-status ${dbStatusType}`"
+             aria-live="polite"
+             style="margin-top:8px; font-size:14px;">
+            <template x-if="dbStatusType === 'saving'">
+                <span>💾 <em x-text="dbStatusMsg"></em></span>
+            </template>
+            <template x-if="dbStatusType === 'ok'">
+                <span>✅ <span x-text="dbStatusMsg"></span></span>
+            </template>
+            <template x-if="dbStatusType === 'error'">
+                <span>⚠️ <strong x-text="dbStatusMsg"></strong></span>
+            </template>
+        </div>
         <div class="row">
             <button class="btn btn-secondary" @click="exportCSV()">Exportera</button>
         </div>
@@ -227,6 +242,10 @@ function seketApp() {
             { id: "demo-3", summary: "A-lag HC vs Lappland Titans", start: "2026-11-02T16:00:00", location: "Hemmarinken Ishall" }
         ],
         assignments: {},
+        // UI-status för molnlagring
+        dbStatusMsg: '',
+        dbStatusType: '', // '', 'saving', 'ok', 'error'
+        dbStatusTimer: null,
 
         init() {
             // Ladda sparad konfig från localStorage vid start
@@ -291,6 +310,23 @@ function seketApp() {
             }
             // Säkerställ reaktiv uppdatering för headerchip
             this.assignments = { ...this.assignments };
+        },
+
+        showDbStatus(msg, type) {
+            this.dbStatusMsg = msg || '';
+            this.dbStatusType = type || '';
+            if (this.dbStatusTimer) {
+                clearTimeout(this.dbStatusTimer);
+                this.dbStatusTimer = null;
+            }
+            // Rensa efter en stund för icke-långvariga statusar
+            if (type === 'ok' || type === 'error') {
+                this.dbStatusTimer = setTimeout(() => {
+                    this.dbStatusMsg = '';
+                    this.dbStatusType = '';
+                    this.dbStatusTimer = null;
+                }, 4000);
+            }
         },
 
         connectDB() {
@@ -447,6 +483,10 @@ function seketApp() {
                     icsText = contents;
                 }
                 this.parseICS(icsText);
+                // Efter kalendersynk – hämta delade roller så UI matchar databasen
+                if (this.isLive && typeof this.loadFromSupabase === 'function') {
+                    await this.loadFromSupabase();
+                }
                 this.computeNext();
             } catch (error) {
                 alert("Kunde inte hämta kalendern via proxy. Dubbelkolla länken.");
@@ -532,7 +572,7 @@ function seketApp() {
 
         // Enkla molnmetoder via Supabase REST – aktiveras när nycklar finns i config.js
         async syncToSupabase(matchId) {
-            if (!this.dbUrl || !this.dbKey) return;
+            if (!this.dbUrl || !this.dbKey) return false;
             try {
                 const data = this.getAssignment(matchId);
                 const normId = this.sanitizeMatchId(matchId);
@@ -547,18 +587,36 @@ function seketApp() {
                     bas2: data.bas2 || null,
                     updated_at: new Date().toISOString()
                 }];
-                await fetch(`${this.dbUrl}/rest/v1/seket_assignments?on_conflict=match_id`, {
+                this.showDbStatus('Sparar till molnet…', 'saving');
+                const res = await fetch(`${this.dbUrl}/rest/v1/seket_assignments?on_conflict=match_id`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'apikey': this.dbKey,
                         'Authorization': `Bearer ${this.dbKey}`,
                         'Prefer': 'return=representation,resolution=merge-duplicates'
                     },
                     body: JSON.stringify(payload)
                 });
+                if (!res.ok) {
+                    let detail = '';
+                    try {
+                        const err = await res.json();
+                        detail = err?.message || err?.hint || JSON.stringify(err);
+                    } catch (_) {
+                        try { detail = await res.text(); } catch(__) {}
+                    }
+                    const msg = `Kunde inte spara till molnet (HTTP ${res.status})${detail ? ': ' + detail : ''}`;
+                    this.showDbStatus(msg, 'error');
+                    return false;
+                }
+                this.showDbStatus('Sparat i molnet', 'ok');
+                return true;
             } catch (e) {
                 console.error('Kunde inte synka till molnet:', e);
+                this.showDbStatus('Nätverksfel: kunde inte spara till molnet', 'error');
+                return false;
             }
         },
         async loadFromSupabase() {
