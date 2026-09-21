@@ -538,6 +538,44 @@ input:focus-visible {
   font-size: 12px;
   white-space: nowrap;
 }
+.mini-resources {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mini-resources-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.mini-role-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.role-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.06) inset;
+}
+.role-dot.filled {
+  background: #6bd98a;
+  border-color: #40c56c;
+}
+.role-dot.open {
+  background: #ff6b6b;
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 1px rgba(255,107,107,0.25) inset;
+}
+.mini-match.has-open {
+  border-color: rgba(255,107,107,0.6);
+}
 .mini-empty {
   color: var(--text-tertiary);
   font-size: 12px;

@@ -44,7 +44,7 @@
                 <button class="carousel-nav left" @click="scrollCarousel(-1)" aria-label="Föregående">‹</button>
                 <div class="carousel-rail" x-ref="carouselRail">
                     <template x-for="(m, idx) in headerSlots()" :key="m ? m.id : ('empty-'+idx)">
-                        <div class="mini-match" :class="m && isNextMatch(m) ? 'active' : ''">
+                        <div class="mini-match" :class="m ? (isNextMatch(m) ? 'active' : '') + (openCount(m) > 0 ? ' has-open' : '') : ''">
                             <template x-if="m">
                                 <div>
                                     <div class="mini-row">
@@ -67,6 +67,17 @@
                                     <div class="mini-meta">
                                         <span class="mini-date" x-text="formatHeaderDateTime(m.start)"></span>
                                         <span class="muted" x-text="m.location || ''"></span>
+                                    </div>
+                                    <div class="mini-resources">
+                                        <div class="mini-resources-count" :aria-label="'Resurser ' + filledCount(m) + '/6'">
+                                            <span class="muted">Resurser</span>
+                                            <strong x-text="filledCount(m) + '/6'"></strong>
+                                        </div>
+                                        <div class="mini-role-dots" role="img" :aria-label="openCount(m) === 0 ? 'Alla roller bemannade' : (openCount(m) + ' roller vakanta')">
+                                            <template x-for="rk in roleKeys()" :key="rk">
+                                                <span class="role-dot" :class="getAssignment(m.id)[rk] ? 'filled' : 'open'" :title="rk"></span>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                             </template>
@@ -379,6 +390,14 @@ function seketApp() {
             if (!this.nextId) return 0;
             const a = this.assignments[this.nextId] || {};
             return ['klocka','ovr','speaker','musik','bas1','bas2'].reduce((n,k)=>n + (a[k] ? 1 : 0), 0);
+        },
+        roleKeys() { return ['klocka','ovr','speaker','musik','bas1','bas2']; },
+        filledCount(match) {
+            const a = this.assignments[match.id] || {};
+            return this.roleKeys().reduce((n, k) => n + (a[k] ? 1 : 0), 0);
+        },
+        openCount(match) {
+            return this.roleKeys().length - this.filledCount(match);
         },
         formatHeaderDateTime(dateStr) {
             const d = new Date(dateStr);
