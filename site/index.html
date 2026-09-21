@@ -328,17 +328,22 @@ function seketApp() {
         },
         logoFor(name) {
             if (!name) return '';
-            const lc = (name || '').toLowerCase();
+            const lc = (name || '').toLowerCase().trim();
             const noDia = lc.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const plain = noDia.replace(/[.,/#!$%^&*;:{}=_'’"~()]/g, ' ').replace(/\s+/g, ' ').trim();
             const tokens = plain.split(' ').filter(Boolean);
             const stop = new Set(['ik','if','hc','bk','hk','hf','sk','aik','dif','hockey','ishockey','ifk','is']);
             const reduced = tokens.filter(t => !stop.has(t) && !/^u\d{1,2}$/.test(t)).join(' ');
             const candidates = [
-                lc, noDia, plain, reduced,
+                // Try exact/full-name keys before any reduced/stopword-stripped variants
+                lc,
+                noDia,
+                plain,
                 tokens.join(' '),
                 tokens.join('-'),
-                tokens.join('')
+                tokens.join(''),
+                // Least strict fallback: reduced tokens without common stop-words (e.g. 'is')
+                reduced
             ];
             for (const cand of candidates) {
                 const url = this.teamLogos[cand];
