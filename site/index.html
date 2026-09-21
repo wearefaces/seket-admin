@@ -39,6 +39,46 @@
             </div>
             <!-- rent sticky header; export flyttad till statusbannern -->
         </div>
+        <div class="app-header-cards">
+            <div class="header-carousel">
+                <button class="carousel-nav left" @click="scrollCarousel(-1)" aria-label="Föregående">‹</button>
+                <div class="carousel-rail" x-ref="carouselRail">
+                    <template x-for="(m, idx) in headerSlots()" :key="m ? m.id : ('empty-'+idx)">
+                        <div class="mini-match" :class="m && isNextMatch(m) ? 'active' : ''">
+                            <template x-if="m">
+                                <div>
+                                    <div class="mini-row">
+                                        <div class="mini-team">
+                                            <div class="mini-logo">
+                                                <img :src="logoFor(teamNames(m).home)" :alt="teamNames(m).home" :style="!logoFor(teamNames(m).home) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.mini-initials').style.display='grid'">
+                                                <div class="mini-initials" :style="logoFor(teamNames(m).home) ? 'display:none' : ''" x-text="initialsFor(teamNames(m).home)"></div>
+                                            </div>
+                                            <div class="name" x-text="teamNames(m).home"></div>
+                                        </div>
+                                        <div class="mini-vs">vs</div>
+                                        <div class="mini-team" style="justify-content:flex-end">
+                                            <div class="name" x-text="teamNames(m).away" style="text-align:right"></div>
+                                            <div class="mini-logo">
+                                                <img :src="logoFor(teamNames(m).away)" :alt="teamNames(m).away" :style="!logoFor(teamNames(m).away) ? 'display:none' : ''" @error="$event.target.style.display='none'; $event.target.parentElement.querySelector('.mini-initials').style.display='grid'">
+                                                <div class="mini-initials" :style="logoFor(teamNames(m).away) ? 'display:none' : ''" x-text="initialsFor(teamNames(m).away)"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mini-meta">
+                                        <span class="mini-date" x-text="formatHeaderDateTime(m.start)"></span>
+                                        <span class="muted" x-text="m.location || ''"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            <template x-if="!m">
+                                <div class="mini-empty">Ingen kommande match</div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+                <button class="carousel-nav right" @click="scrollCarousel(1)" aria-label="Nästa">›</button>
+            </div>
+        </div>
     </header>
 
     <!-- SYNK / STATUS -->
@@ -166,6 +206,7 @@ function seketApp() {
         dbKey: null,
         teamLogos: {},
         nextId: null,
+        nextThree: [],
         matches: [
             { id: "demo-1", summary: "A-lag HC vs Derby IK", start: "2026-10-12T19:00:00", location: "Hemmarinken Ishall" },
             { id: "demo-2", summary: "A-lag HC vs Östkust Wizards", start: "2026-10-19T19:30:00", location: "Hemmarinken Ishall" },
@@ -214,6 +255,7 @@ function seketApp() {
                 .filter(x => x.d.getTime() >= now.getTime() - 60*60*1000) // tolerans
                 .sort((a, b) => a.d - b.d);
             this.nextId = upcoming.length ? upcoming[0].m.id : null;
+            this.nextThree = upcoming.slice(0, 3).map(x => x.m);
         },
 
         getAssignment(matchId) {
@@ -293,6 +335,12 @@ function seketApp() {
             const m = this.matches.find(x => x.id === this.nextId);
             return m ? this.formatTime(m.start) : '—';
         },
+        headerSlots() {
+            if (this.nextThree.length === 0) return [null, null, null];
+            if (this.nextThree.length === 1) return [this.nextThree[0], null, null];
+            if (this.nextThree.length === 2) return [this.nextThree[0], this.nextThree[1], null];
+            return this.nextThree;
+        },
         upcomingCount() {
             const now = new Date();
             return this.matches.filter(m => {
@@ -304,6 +352,23 @@ function seketApp() {
             if (!this.nextId) return 0;
             const a = this.assignments[this.nextId] || {};
             return ['klocka','ovr','speaker','musik','bas1','bas2'].reduce((n,k)=>n + (a[k] ? 1 : 0), 0);
+        },
+        formatHeaderDateTime(dateStr) {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '';
+            const wd = d.toLocaleDateString('sv-SE', { weekday: 'short' });
+            const mon = d.toLocaleDateString('sv-SE', { month: 'short' });
+            const day = d.getDate();
+            const time = d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+            const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+            return `${cap(wd)} ${day} ${mon} · ${time}`;
+        },
+        scrollCarousel(dir) {
+            const el = this.$refs.carouselRail;
+            if (!el) return;
+            const first = el.querySelector('.mini-match');
+            const step = first ? (first.getBoundingClientRect().width + 12) : 240;
+            el.scrollBy({ left: dir * step, behavior: 'smooth' });
         },
 
         async fetchCalendar() {
