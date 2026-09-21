@@ -138,11 +138,11 @@
             <span class="loading-spinner" aria-hidden="true"></span>
             <span>Laddar matcher…</span>
         </div>
-        <div class="empty-state" x-show="matches.length === 0" style="display:none">
+        <div class="empty-state" x-show="visibleMatches().length === 0" style="display:none">
             Inga matcher inlästa. Synka ovan för att börja.
         </div>
         
-        <template x-for="match in matches" :key="match.id">
+        <template x-for="match in visibleMatches()" :key="match.id">
             <div class="match-card" :class="isNextMatch(match) ? 'is-next' : ''">
                 <div class="match-header">
                     <div>
@@ -241,6 +241,9 @@ function seketApp() {
             { id: "demo-2", summary: "A-lag HC vs Östkust Wizards", start: "2026-10-19T19:30:00", location: "Hemmarinken Ishall" },
             { id: "demo-3", summary: "A-lag HC vs Lappland Titans", start: "2026-11-02T16:00:00", location: "Hemmarinken Ishall" }
         ],
+        // Åldersfilter (default U16). Kan sättas via window.SEKET_AGE_FILTER, t.ex. "U14"
+        ageGroupLabel: null,
+        ageRegexps: [],
         assignments: {},
         // UI-status för molnlagring
         dbStatusMsg: '',
@@ -261,6 +264,9 @@ function seketApp() {
             this.dbUrl = window.SEKET_SUPABASE_URL || window.SUPABASE_URL || localStorage.getItem('seket_db_url') || null;
             this.dbKey = window.SEKET_SUPABASE_ANON_KEY || window.SUPABASE_ANON_KEY || localStorage.getItem('seket_db_key') || null;
             this.isLive = !!(this.dbUrl && this.dbKey);
+
+            // Initiera åldersfilter (standard U16 om inget angivet)
+            this.initAgeFilter();
 
             // Ladda team-logos (valfritt)
             this.loadTeamLogos();
@@ -285,7 +291,7 @@ function seketApp() {
 
         computeNext() {
             const now = new Date();
-            const upcoming = this.matches
+            const upcoming = this.visibleMatches()
                 .map(m => ({ m, d: new Date(m.start) }))
                 .filter(x => !isNaN(x.d.getTime()))
                 .filter(x => x.d.getTime() >= now.getTime() - 60*60*1000) // tolerans
@@ -357,6 +363,37 @@ function seketApp() {
             return d.toLocaleDateString('sv-SE', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Europe/Stockholm' }) + ' kl. ' + d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Stockholm' });
         },
 
+        // Åldersfilter: kompilerar regexar för t.ex. U16 samt varianter (U-16, U 16, U16P, J16)
+        initAgeFilter() {
+            const raw = (window.SEKET_AGE_FILTER || 'U16').toString().trim();
+            this.ageGroupLabel = raw;
+            // Försök extrahera siffra (t.ex. 16)
+            const numMatch = raw.match(/(\d{1,2})/);
+            const ageNum = numMatch ? numMatch[1] : '16';
+            // Tillåt U16 och J16-varianter samt valfria suffix (t.ex. U16P)
+            const base = `(?:U|J)\\s*-?\\s*${ageNum}`;
+            // Matcha: U16, U-16, U 16, U16P, U16 P, J16, J-16, J 16
+            this.ageRegexps = [
+                new RegExp(`(^|[^A-Za-z0-9])${base}([^A-Za-z0-9]|$)`, 'i'),
+                new RegExp(`(^|[^A-Za-z0-9])${base}\\s*[A-Za-zÅÄÖåäö]([^A-Za-z0-9]|$)`, 'i')
+            ];
+        },
+        // True när matchen tillhör vald åldersgrupp (tittar på SUMMARY och DESCRIPTION)
+        isAgeMatch(match) {
+            const s = (match?.summary || '').toString();
+            const d = (match?.description || '').toString();
+            const text = `${s}\n${d}`;
+            return this.ageRegexps.some(rx => rx.test(text));
+        },
+        // Lista över matcher som ska visas i UI (filtrerad på åldersgrupp)
+        visibleMatches() {
+            try {
+                return (this.matches || []).filter(m => this.isAgeMatch(m));
+            } catch (_) {
+                return this.matches || [];
+            }
+        },
+
         teamNames(match) {
             const s = (match.summary || '').replace(/^match\s*:\s*/i, '').trim();
             // Försök hitta "A vs B", "A - B", "A – B", "A — B" eller "A mot B" (sv)
@@ -414,7 +451,7 @@ function seketApp() {
         isNextMatch(match) { return this.nextId && match.id === this.nextId; },
         nextMatchLabel() {
             if (!this.nextId) return '—';
-            const m = this.matches.find(x => x.id === this.nextId);
+            const m = this.visibleMatches().find(x => x.id === this.nextId);
             return m ? this.formatTime(m.start) : '—';
         },
         headerSlots() {
@@ -425,7 +462,7 @@ function seketApp() {
         },
         upcomingCount() {
             const now = new Date();
-            return this.matches.filter(m => {
+            return this.visibleMatches().filter(m => {
                 const d = new Date(m.start);
                 return !isNaN(d.getTime()) && d.getTime() >= now.getTime() - 60*60*1000;
             }).length;
@@ -531,6 +568,8 @@ function seketApp() {
                     currentEvent = null;
                 } else if (currentEvent) {
                     if (line.startsWith("SUMMARY:")) currentEvent.summary = line.replace("SUMMARY:", "").trim();
+                    if (line.startsWith("DESCRIPTION:")) currentEvent.description = line.replace("DESCRIPTION:", "").trim();
+                    if (line.startsWith("CATEGORIES:")) currentEvent.categories = line.replace("CATEGORIES:", "").trim();
                     if (line.startsWith("LOCATION:")) currentEvent.location = line.replace("LOCATION:", "").trim();
                     if (line.startsWith("UID:")) currentEvent.id = this.sanitizeMatchId(line.replace("UID:", ""));
                     if (line.startsWith("DTSTART")) {
@@ -662,7 +701,7 @@ function seketApp() {
 
         exportCSV() {
             let csv = '\uFEFFMatch;Datum;Klocka;OVR;Speaker;Musik;Båsdörr 1;Båsdörr 2\n';
-            this.matches.forEach(m => {
+            this.visibleMatches().forEach(m => {
                 let a = this.getAssignment(m.id);
                 csv += `"${m.summary}";"${this.formatTime(m.start)}";"${a.klocka || ''}";"${a.ovr || ''}";"${a.speaker || ''}";"${a.musik || ''}";"${a.bas1 || ''}";"${a.bas2 || ''}"\n`;
             });
