@@ -246,7 +246,10 @@ function seketApp() {
             try {
                 const res = await fetch('assets/team-logos.json', { cache: 'no-store' });
                 if (!res.ok) return;
-                this.teamLogos = await res.json();
+                const json = await res.json();
+                // ensure Alpine reactivity even if same object shape
+                this.teamLogos = { ...json };
+                this.$nextTick?.(() => {});
             } catch (_) { /* valfritt */ }
         },
 
@@ -296,7 +299,7 @@ function seketApp() {
             if (!dateStr) return '';
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return dateStr;
-            return d.toLocaleDateString('sv-SE', { weekday: 'short', month: 'short', day: 'numeric' }) + ' kl. ' + d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+            return d.toLocaleDateString('sv-SE', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Europe/Stockholm' }) + ' kl. ' + d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Stockholm' });
         },
 
         teamNames(match) {
@@ -332,18 +335,20 @@ function seketApp() {
             const noDia = lc.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
             const plain = noDia.replace(/[.,/#!$%^&*;:{}=_'’"~()]/g, ' ').replace(/\s+/g, ' ').trim();
             const tokens = plain.split(' ').filter(Boolean);
-            const stop = new Set(['ik','if','hc','bk','hk','hf','sk','aik','dif','hockey','ishockey','ifk','is']);
+            // remove generic words and jersey colors/squad markers that often appear in calendar feeds
+            const stop = new Set([
+                'ik','if','hc','bk','hk','hf','sk','aik','dif','hockey','ishockey','ifk','is',
+                'bla','blå','vit','vita','svart','svarta','gul','gula','rod','röd','roda','röda','green','gron','grön',
+                '1','2','3','lag','team'
+            ]);
             const reduced = tokens.filter(t => !stop.has(t) && !/^u\d{1,2}$/.test(t)).join(' ');
             const candidates = [
-                // Try exact/full-name keys before any reduced/stopword-stripped variants
-                lc,
-                noDia,
-                plain,
+                // prefer exact/full forms first, then looser joins
+                lc, noDia, plain, reduced,
                 tokens.join(' '),
                 tokens.join('-'),
                 tokens.join(''),
-                // Least strict fallback: reduced tokens without common stop-words (e.g. 'is')
-                reduced
+                // keep reduced once to avoid duplicates
             ];
             for (const cand of candidates) {
                 const url = this.teamLogos[cand];
@@ -378,10 +383,10 @@ function seketApp() {
         formatHeaderDateTime(dateStr) {
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return '';
-            const wd = d.toLocaleDateString('sv-SE', { weekday: 'short' });
-            const mon = d.toLocaleDateString('sv-SE', { month: 'short' });
+            const wd = d.toLocaleDateString('sv-SE', { weekday: 'short', timeZone: 'Europe/Stockholm' });
+            const mon = d.toLocaleDateString('sv-SE', { month: 'short', timeZone: 'Europe/Stockholm' });
             const day = d.getDate();
-            const time = d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+            const time = d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Stockholm' });
             const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
             return `${cap(wd)} ${day} ${mon} · ${time}`;
         },
@@ -432,7 +437,16 @@ function seketApp() {
         },
 
         parseICS(icsText) {
-            const lines = icsText.split(/\r?\n/);
+            // Unfold lines per RFC 5545 (continuation lines start with space or tab)
+            const raw = icsText.split(/\r?\n/);
+            const lines = [];
+            for (const ln of raw) {
+                if ((ln.startsWith(' ') || ln.startsWith('\t')) && lines.length > 0) {
+                    lines[lines.length - 1] += ln.slice(1);
+                } else {
+                    lines.push(ln);
+                }
+            }
             let currentEvent = null;
             const parsedMatches = [];
 
@@ -453,18 +467,34 @@ function seketApp() {
                     if (line.startsWith("LOCATION:")) currentEvent.location = line.replace("LOCATION:", "").trim();
                     if (line.startsWith("UID:")) currentEvent.id = this.sanitizeMatchId(line.replace("UID:", ""));
                     if (line.startsWith("DTSTART")) {
-                        // Hantera både "DTSTART:..." och "DTSTART;TZID=Europe/Stockholm:..."
-                        const parts = line.split(':');
-                        const value = (parts.length > 1 ? parts[parts.length - 1] : '').trim();
-                        let rawDate = value;
-                        if (rawDate) {
-                            // YYYYMMDD eller YYYYMMDDTHHMM[SS][Z]
-                            const y = rawDate.substring(0,4), m = rawDate.substring(4,6), d = rawDate.substring(6,8);
-                            if (rawDate.includes('T') && rawDate.length >= 13) {
-                                const hh = rawDate.substring(9,11), mm = rawDate.substring(11,13);
-                                currentEvent.start = `${y}-${m}-${d}T${hh}:${mm}:00`;
+                        // Handles:
+                        // - DTSTART:YYYYMMDDTHHMMSSZ
+                        // - DTSTART;TZID=Europe/Stockholm:YYYYMMDDTHHMMSS
+                        // - DTSTART;VALUE=DATE:YYYYMMDD
+                        const m = line.match(/^DTSTART([^:]*)?:(.+)$/i);
+                        const params = (m && m[1]) ? m[1] : '';
+                        const value = (m && m[2]) ? m[2].trim() : '';
+                        const isDateOnly = /VALUE=DATE/i.test(params);
+                        const tzidMatch = params && params.match(/TZID=([^;]+)/i);
+                        const tzid = tzidMatch ? tzidMatch[1] : null;
+                        if (value) {
+                            const y = value.substring(0, 4);
+                            const mo = value.substring(4, 6);
+                            const da = value.substring(6, 8);
+                            if (isDateOnly || (!value.includes('T'))) {
+                                // All-day — treat as midnight local (Stockholm for display)
+                                currentEvent.start = `${y}-${mo}-${da}T00:00:00`;
                             } else {
-                                currentEvent.start = `${y}-${m}-${d}`;
+                                const hh = value.substring(9, 11);
+                                const mi = value.substring(11, 13);
+                                const hasZ = /Z$/i.test(value);
+                                if (hasZ) {
+                                    currentEvent.start = `${y}-${mo}-${da}T${hh}:${mi}:00Z`;
+                                } else {
+                                    // Keep naive local time; we display using Europe/Stockholm to avoid user TZ drift
+                                    // If TZID is provided but not Z, assume Europe/Stockholm wall time
+                                    currentEvent.start = `${y}-${mo}-${da}T${hh}:${mi}:00`;
+                                }
                             }
                         }
                     }
@@ -486,8 +516,9 @@ function seketApp() {
             if (!this.dbUrl || !this.dbKey) return;
             try {
                 const data = this.getAssignment(matchId);
+                const normId = this.sanitizeMatchId(matchId);
                 const payload = [{
-                    match_id: matchId,
+                    match_id: normId,
                     team: window.SEKET_TEAM || null,
                     klocka: data.klocka || null,
                     ovr: data.ovr || null,
