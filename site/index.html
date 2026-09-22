@@ -163,7 +163,11 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="match-meta" x-text="'📍 ' + (match.location || 'Ej angiven arena')"></div>
+                        <div class="match-meta">
+                            <span class="match-date-inline" x-text="formatTime(match.start)"></span>
+                            <span class="muted">·</span>
+                            <span x-text="match.location || 'Ej angiven arena'"></span>
+                        </div>
                     </div>
                     <div class="match-badge" x-text="formatTime(match.start)"></div>
                 </div>
