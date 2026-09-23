@@ -34,7 +34,8 @@
                 </div>
                 <div class="chip chip-muted">
                     <strong>Resurser</strong>
-                    <span x-text="nextFilledCount() + '/6'"></span>
+                    <span x-show="!nextIsAway()" x-text="nextFilledCount() + '/6'"></span>
+                    <span x-show="nextIsAway()" class="muted">—</span>
                 </div>
             </div>
             <!-- rent sticky header; export flyttad till statusbannern -->
@@ -44,7 +45,7 @@
                 <button class="carousel-nav left" @click="scrollCarousel(-1)" aria-label="Föregående">‹</button>
                 <div class="carousel-rail" x-ref="carouselRail">
                     <template x-for="(m, idx) in headerSlots()" :key="m ? m.id : ('empty-'+idx)">
-                        <div class="mini-match" :class="m ? (isNextMatch(m) ? 'active' : '') + (openCount(m) > 0 ? ' has-open' : '') : ''">
+                        <div class="mini-match" :class="m ? (isNextMatch(m) ? 'active' : '') + ((isHomeMatch(m) && openCount(m) > 0) ? ' has-open' : '') : ''">
                             <template x-if="m">
                                 <div>
                                     <div class="mini-row">
@@ -68,7 +69,7 @@
                                         <span class="mini-date" x-text="formatHeaderDateTime(m.start)"></span>
                                         <span class="muted" x-text="m.location || ''"></span>
                                     </div>
-                                    <div class="mini-resources">
+                                    <div class="mini-resources" x-show="isHomeMatch(m)">
                                         <div class="mini-resources-count" :aria-label="'Resurser ' + filledCount(m) + '/6'">
                                             <span class="muted">Resurser</span>
                                             <strong x-text="filledCount(m) + '/6'"></strong>
@@ -93,7 +94,8 @@
     </header>
 
     <!-- SYNK / STATUS -->
-    <div class="sync-banner">
+    <!-- Admin unlock: add ?admin=1 (or localStorage 'seket_admin=1') to show sync UI -->
+    <div class="sync-banner" x-show="isAdmin" style="display:none">
         <div class="status">
             <span x-show="isLive" style="display:none">
                 🟢 <strong>Delad databas aktiv</strong> — ändringar sparas både lokalt och i molnet.
@@ -122,7 +124,7 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="card" x-show="isAdmin" style="display:none">
         <h3 class="section-title">📅 Prenumerationskalender (.ics)</h3>
         <p class="section-description">Klistra in lagets prenumerationslänk från SportAdmin eller annan kalender.</p>
         <div class="config-grid">
@@ -173,53 +175,56 @@
                 </div>
 
                 <div class="roles-grid">
-                    <div class="role-box">
-                        <div class="role-label">
-                            <span>⏱️ Klocka</span>
-                            <span class="role-badge" :class="getAssignment(match.id).klocka ? 'filled' : ''" x-text="getAssignment(match.id).klocka ? 'Bemannad' : 'Vakant'"></span>
-                        </div>
-                        <input type="text" :value="getAssignment(match.id).klocka" @input="saveRole(match.id, 'klocka', $event.target.value)" placeholder="Fyll i namn…">
-                    </div>
-
-                    <div class="role-box">
-                        <div class="role-label">
-                            <span>💻 OVR Protokoll</span>
-                            <span class="role-badge" :class="getAssignment(match.id).ovr ? 'filled' : ''" x-text="getAssignment(match.id).ovr ? 'Bemannad' : 'Vakant'"></span>
-                        </div>
-                        <input type="text" :value="getAssignment(match.id).ovr" @input="saveRole(match.id, 'ovr', $event.target.value)" placeholder="Fyll i namn…">
-                    </div>
-
-                    <div class="role-box">
-                        <div class="role-label">
-                            <span>🎙️ Speaker</span>
-                            <span class="role-badge" :class="getAssignment(match.id).speaker ? 'filled' : ''" x-text="getAssignment(match.id).speaker ? 'Bemannad' : 'Vakant'"></span>
-                        </div>
-                        <input type="text" :value="getAssignment(match.id).speaker" @input="saveRole(match.id, 'speaker', $event.target.value)" placeholder="Fyll i namn…">
-                    </div>
-
-                    <div class="role-box">
-                        <div class="role-label">
-                            <span>🎵 Musik</span>
-                            <span class="role-badge" :class="getAssignment(match.id).musik ? 'filled' : ''" x-text="getAssignment(match.id).musik ? 'Bemannad' : 'Vakant'"></span>
-                        </div>
-                        <input type="text" :value="getAssignment(match.id).musik" @input="saveRole(match.id, 'musik', $event.target.value)" placeholder="Fyll i namn…">
-                    </div>
-
-                    <div class="role-box">
-                        <div class="role-label">
-                            <span>🚪 Båsdörr 1</span>
-                            <span class="role-badge" :class="getAssignment(match.id).bas1 ? 'filled' : ''" x-text="getAssignment(match.id).bas1 ? 'Bemannad' : 'Vakant'"></span>
-                        </div>
-                        <input type="text" :value="getAssignment(match.id).bas1" @input="saveRole(match.id, 'bas1', $event.target.value)" placeholder="Fyll i namn…">
-                    </div>
-
-                    <div class="role-box">
-                        <div class="role-label">
-                            <span>🚪 Båsdörr 2</span>
-                            <span class="role-badge" :class="getAssignment(match.id).bas2 ? 'filled' : ''" x-text="getAssignment(match.id).bas2 ? 'Bemannad' : 'Vakant'"></span>
-                        </div>
-                        <input type="text" :value="getAssignment(match.id).bas2" @input="saveRole(match.id, 'bas2', $event.target.value)" placeholder="Fyll i namn…">
-                    </div>
+                    <!-- Hide staffing inputs for away games -->
+                    <template x-if="isHomeMatch(match)">
+                        <template>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>⏱️ Klocka</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).klocka ? 'filled' : ''" x-text="getAssignment(match.id).klocka ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <input type="text" :value="getAssignment(match.id).klocka" @input="saveRole(match.id, 'klocka', $event.target.value)" placeholder="Fyll i namn…">
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>💻 OVR Protokoll</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).ovr ? 'filled' : ''" x-text="getAssignment(match.id).ovr ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <input type="text" :value="getAssignment(match.id).ovr" @input="saveRole(match.id, 'ovr', $event.target.value)" placeholder="Fyll i namn…">
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>🎙️ Speaker</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).speaker ? 'filled' : ''" x-text="getAssignment(match.id).speaker ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <input type="text" :value="getAssignment(match.id).speaker" @input="saveRole(match.id, 'speaker', $event.target.value)" placeholder="Fyll i namn…">
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>🎵 Musik</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).musik ? 'filled' : ''" x-text="getAssignment(match.id).musik ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <input type="text" :value="getAssignment(match.id).musik" @input="saveRole(match.id, 'musik', $event.target.value)" placeholder="Fyll i namn…">
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>🚪 Båsdörr 1</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).bas1 ? 'filled' : ''" x-text="getAssignment(match.id).bas1 ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <input type="text" :value="getAssignment(match.id).bas1" @input="saveRole(match.id, 'bas1', $event.target.value)" placeholder="Fyll i namn…">
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>🚪 Båsdörr 2</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).bas2 ? 'filled' : ''" x-text="getAssignment(match.id).bas2 ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <input type="text" :value="getAssignment(match.id).bas2" @input="saveRole(match.id, 'bas2', $event.target.value)" placeholder="Fyll i namn…">
+                            </div>
+                        </template>
+                    </template>
+                    <template x-if="!isHomeMatch(match)">
+                        <div class="muted" style="padding:8px 2px;">Bortamatch – bemanning hanteras av hemmalaget.</div>
+                    </template>
                 </div>
             </div>
         </template>
@@ -232,6 +237,7 @@ function seketApp() {
         icalUrl: '',
         isLive: false,
         isLoading: false,
+        isAdmin: false,
         // Revision bump to ensure Alpine reactivity across header counters/dots
         assignmentsRev: 0,
         dbUrl: null,
@@ -257,6 +263,14 @@ function seketApp() {
         dbStatusTimer: null,
 
         init() {
+            // Admin unlock via ?admin=1 or localStorage key
+            try {
+                const usp = new URLSearchParams(location.search);
+                const ap = usp.get('admin');
+                if (ap === '1') localStorage.setItem('seket_admin', '1');
+                else if (ap === '0') localStorage.removeItem('seket_admin');
+            } catch(_) {}
+            this.isAdmin = localStorage.getItem('seket_admin') === '1';
             // Ladda sparad konfig från localStorage vid start
             this.icalUrl = localStorage.getItem('seket_ical_url') || 'https://portalweb.sportadmin.se/webcal?id=0e4dee57-db8d-4d2a-af08-e4dd1990fc4a';
             
@@ -459,6 +473,38 @@ function seketApp() {
                 if (typeof url === 'string' && url) return url;
             }
             return '';
+        },
+        // Home/Away detection
+        // Rule: SportAdmin iCal inkluderar LOCATION. För Värmdö räknas matcher som HEMMA endast
+        // om LOCATION innehåller någon av de konfigurerade hemmarinksorden
+        // (default: "Ekhallen", "Ekvallen"). Matchen betraktas annars som BORTA.
+        // Konfig kan överstyras via window.SEKET_HOME_ARENAS = ["Ekhallen","Ekvallen", ...]
+        // och valfritt window.SEKET_CLUB_KEYWORDS = ["Värmdö", "Värmdö HC"] om fallback behövs.
+        isHomeMatch(match) {
+            const normalize = (s) => (s || '').toString().toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const loc = normalize(match?.location || '');
+            const defaults = ['ekhallen','ekvallen'];
+            const fromCfg = Array.isArray(window.SEKET_HOME_ARENAS) ? window.SEKET_HOME_ARENAS : [];
+            const arenas = [...defaults, ...fromCfg].map(x => normalize(x));
+            if (loc && arenas.some(k => loc.includes(k))) return true;
+            if (loc) return false;
+            // Optional fallback when LOCATION is missing: prefer SUMMARY order if club keywords given
+            const keys = Array.isArray(window.SEKET_CLUB_KEYWORDS) ? window.SEKET_CLUB_KEYWORDS.map(normalize) : [];
+            if (keys.length > 0) {
+                const { home, away } = this.teamNames(match);
+                const h = normalize(home), a = normalize(away);
+                if (keys.some(k => h.includes(k))) return true;
+                if (keys.some(k => a.includes(k))) return false;
+            }
+            // Default to away when uncertain, to avoid showing bemanning för bortamatcher
+            return false;
+        },
+        isAwayMatch(match) { return !this.isHomeMatch(match); },
+        nextIsAway() {
+            if (!this.nextId) return false;
+            const m = (this.visibleMatches() || []).find(x => x.id === this.nextId);
+            return m ? this.isAwayMatch(m) : false;
         },
         isNextMatch(match) { return this.nextId && match.id === this.nextId; },
         nextMatchLabel() {
