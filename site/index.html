@@ -94,7 +94,8 @@
     </header>
 
     <!-- SYNK / STATUS -->
-    <div class="sync-banner">
+    <!-- Admin unlock: add ?admin=1 (or localStorage 'seket_admin=1') to show sync UI -->
+    <div class="sync-banner" x-show="isAdmin" style="display:none">
         <div class="status">
             <span x-show="isLive" style="display:none">
                 🟢 <strong>Delad databas aktiv</strong> — ändringar sparas både lokalt och i molnet.
@@ -123,7 +124,7 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="card" x-show="isAdmin" style="display:none">
         <h3 class="section-title">📅 Prenumerationskalender (.ics)</h3>
         <p class="section-description">Klistra in lagets prenumerationslänk från SportAdmin eller annan kalender.</p>
         <div class="config-grid">
@@ -176,7 +177,7 @@
                 <div class="roles-grid">
                     <!-- Hide staffing inputs for away games -->
                     <template x-if="isHomeMatch(match)">
-                        <div class="roles-grid">
+                        <template>
                             <div class="role-box">
                                 <div class="role-label">
                                     <span>⏱️ Klocka</span>
@@ -184,7 +185,6 @@
                                 </div>
                                 <input type="text" :value="getAssignment(match.id).klocka" @input="saveRole(match.id, 'klocka', $event.target.value)" placeholder="Fyll i namn…">
                             </div>
-    
                             <div class="role-box">
                                 <div class="role-label">
                                     <span>💻 OVR Protokoll</span>
@@ -192,7 +192,6 @@
                                 </div>
                                 <input type="text" :value="getAssignment(match.id).ovr" @input="saveRole(match.id, 'ovr', $event.target.value)" placeholder="Fyll i namn…">
                             </div>
-    
                             <div class="role-box">
                                 <div class="role-label">
                                     <span>🎙️ Speaker</span>
@@ -200,7 +199,6 @@
                                 </div>
                                 <input type="text" :value="getAssignment(match.id).speaker" @input="saveRole(match.id, 'speaker', $event.target.value)" placeholder="Fyll i namn…">
                             </div>
-    
                             <div class="role-box">
                                 <div class="role-label">
                                     <span>🎵 Musik</span>
@@ -208,7 +206,6 @@
                                 </div>
                                 <input type="text" :value="getAssignment(match.id).musik" @input="saveRole(match.id, 'musik', $event.target.value)" placeholder="Fyll i namn…">
                             </div>
-    
                             <div class="role-box">
                                 <div class="role-label">
                                     <span>🚪 Båsdörr 1</span>
@@ -216,7 +213,6 @@
                                 </div>
                                 <input type="text" :value="getAssignment(match.id).bas1" @input="saveRole(match.id, 'bas1', $event.target.value)" placeholder="Fyll i namn…">
                             </div>
-    
                             <div class="role-box">
                                 <div class="role-label">
                                     <span>🚪 Båsdörr 2</span>
@@ -224,7 +220,7 @@
                                 </div>
                                 <input type="text" :value="getAssignment(match.id).bas2" @input="saveRole(match.id, 'bas2', $event.target.value)" placeholder="Fyll i namn…">
                             </div>
-                        </div>
+                        </template>
                     </template>
                     <template x-if="!isHomeMatch(match)">
                         <div class="muted" style="padding:8px 2px;">Bortamatch – bemanning hanteras av hemmalaget.</div>
@@ -241,6 +237,7 @@ function seketApp() {
         icalUrl: '',
         isLive: false,
         isLoading: false,
+        isAdmin: false,
         // Revision bump to ensure Alpine reactivity across header counters/dots
         assignmentsRev: 0,
         dbUrl: null,
@@ -266,6 +263,14 @@ function seketApp() {
         dbStatusTimer: null,
 
         init() {
+            // Admin unlock via ?admin=1 or localStorage key
+            try {
+                const usp = new URLSearchParams(location.search);
+                const ap = usp.get('admin');
+                if (ap === '1') localStorage.setItem('seket_admin', '1');
+                else if (ap === '0') localStorage.removeItem('seket_admin');
+            } catch(_) {}
+            this.isAdmin = localStorage.getItem('seket_admin') === '1';
             // Ladda sparad konfig från localStorage vid start
             this.icalUrl = localStorage.getItem('seket_ical_url') || 'https://portalweb.sportadmin.se/webcal?id=0e4dee57-db8d-4d2a-af08-e4dd1990fc4a';
             
