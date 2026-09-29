@@ -95,43 +95,47 @@
 
     <!-- SYNK / STATUS -->
     <!-- Admin unlock: add ?admin=1 (or localStorage 'seket_admin=1') to show sync UI -->
-    <div class="sync-banner" x-show="isAdmin" style="display:none">
-        <div class="status">
-            <span x-show="isLive" style="display:none">
-                🟢 <strong>Delad databas aktiv</strong> — ändringar sparas både lokalt och i molnet.
-            </span>
-            <span x-show="!isLive" style="display:none">
-                ⚪ <strong>Lokalt läge</strong> — sparar i webbläsaren. Lägg till <code>config.js</code> för delning.
-            </span>
+    <template x-if="isAdmin">
+        <div class="sync-banner">
+            <div class="status">
+                <span x-show="isLive" style="display:none">
+                    🟢 <strong>Delad databas aktiv</strong> — ändringar sparas både lokalt och i molnet.
+                </span>
+                <span x-show="!isLive" style="display:none">
+                    ⚪ <strong>Lokalt läge</strong> — sparar i webbläsaren. Lägg till <code>config.js</code> för delning.
+                </span>
+            </div>
+            <!-- Molnstatus för att undvika tysta fel vid skrivning -->
+            <div x-show="dbStatusMsg" x-transition
+                :class="`banner-status ${dbStatusType}`"
+                aria-live="polite"
+                style="margin-top:8px; font-size:14px;">
+                <template x-if="dbStatusType === 'saving'">
+                    <span>💾 <em x-text="dbStatusMsg"></em></span>
+                </template>
+                <template x-if="dbStatusType === 'ok'">
+                    <span>✅ <span x-text="dbStatusMsg"></span></span>
+                </template>
+                <template x-if="dbStatusType === 'error'">
+                    <span>⚠️ <strong x-text="dbStatusMsg"></strong></span>
+                </template>
+            </div>
+            <div class="row">
+                <button class="btn btn-secondary" @click="exportCSV()">Exportera</button>
+            </div>
         </div>
-        <!-- Molnstatus för att undvika tysta fel vid skrivning -->
-        <div x-show="dbStatusMsg" x-transition
-             :class="`banner-status ${dbStatusType}`"
-             aria-live="polite"
-             style="margin-top:8px; font-size:14px;">
-            <template x-if="dbStatusType === 'saving'">
-                <span>💾 <em x-text="dbStatusMsg"></em></span>
-            </template>
-            <template x-if="dbStatusType === 'ok'">
-                <span>✅ <span x-text="dbStatusMsg"></span></span>
-            </template>
-            <template x-if="dbStatusType === 'error'">
-                <span>⚠️ <strong x-text="dbStatusMsg"></strong></span>
-            </template>
-        </div>
-        <div class="row">
-            <button class="btn btn-secondary" @click="exportCSV()">Exportera</button>
-        </div>
-    </div>
+    </template>
 
-    <div class="card" x-show="isAdmin" style="display:none">
-        <h3 class="section-title">📅 Prenumerationskalender (.ics)</h3>
-        <p class="section-description">Klistra in lagets prenumerationslänk från SportAdmin eller annan kalender.</p>
-        <div class="config-grid">
-            <input type="text" x-model="icalUrl" placeholder="https://...kalender.ics" inputmode="url">
-            <button class="btn btn-primary" @click="fetchCalendar()" :disabled="isLoading" :aria-busy="isLoading" x-text="isLoading ? 'Synkar…' : 'Synka matcher'"></button>
+    <template x-if="isAdmin">
+        <div class="card">
+            <h3 class="section-title">📅 Prenumerationskalender (.ics)</h3>
+            <p class="section-description">Klistra in lagets prenumerationslänk från SportAdmin eller annan kalender.</p>
+            <div class="config-grid">
+                <input type="text" x-model="icalUrl" placeholder="https://...kalender.ics" inputmode="url">
+                <button class="btn btn-primary" @click="fetchCalendar()" :disabled="isLoading" :aria-busy="isLoading" x-text="isLoading ? 'Synkar…' : 'Synka matcher'"></button>
+            </div>
         </div>
-    </div>
+    </template>
 
     <!-- MATCHLISTA -->
     <div>
