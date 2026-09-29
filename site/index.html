@@ -32,7 +32,7 @@
                     <strong>Kommande</strong>
                     <span x-text="upcomingCount()"></span>
                 </div>
-                <div class="chip chip-muted" x-show="isAdmin" style="display:none">
+                <div class="chip chip-muted">
                     <strong>Resurser</strong>
                     <span x-show="!nextIsAway()" x-text="nextFilledCount() + '/6'"></span>
                     <span x-show="nextIsAway()" class="muted">—</span>
@@ -45,7 +45,7 @@
                 <button class="carousel-nav left" @click="scrollCarousel(-1)" aria-label="Föregående">‹</button>
                 <div class="carousel-rail" x-ref="carouselRail">
                     <template x-for="(m, idx) in headerSlots()" :key="m ? m.id : ('empty-'+idx)">
-                        <div class="mini-match" :class="m ? (isNextMatch(m) ? 'active' : '') + (((isAdmin && isHomeMatch(m)) && openCount(m) > 0) ? ' has-open' : '') : ''">
+                        <div class="mini-match" :class="m ? (isNextMatch(m) ? 'active' : '') + ((isHomeMatch(m) && openCount(m) > 0) ? ' has-open' : '') : ''">
                             <template x-if="m">
                                 <div>
                                     <div class="mini-row">
@@ -69,7 +69,7 @@
                                         <span class="mini-date" x-text="formatHeaderDateTime(m.start)"></span>
                                         <span class="muted" x-text="m.location || ''"></span>
                                     </div>
-                                    <div class="mini-resources" x-show="isAdmin && isHomeMatch(m)">
+                                    <div class="mini-resources" x-show="isHomeMatch(m)">
                                         <div class="mini-resources-count" :aria-label="'Resurser ' + filledCount(m) + '/6'">
                                             <span class="muted">Resurser</span>
                                             <strong x-text="filledCount(m) + '/6'"></strong>
@@ -226,7 +226,50 @@
                         <div class="muted" style="padding:8px 2px;">Bortamatch – bemanning hanteras av hemmalaget.</div>
                     </template>
                     <template x-if="!isAdmin && isHomeMatch(match)">
-                        <div></div>
+                        <template>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>⏱️ Klocka</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).klocka ? 'filled' : ''" x-text="getAssignment(match.id).klocka ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <div x-text="getAssignment(match.id).klocka || '—'"></div>
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>💻 OVR Protokoll</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).ovr ? 'filled' : ''" x-text="getAssignment(match.id).ovr ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <div x-text="getAssignment(match.id).ovr || '—'"></div>
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>🎙️ Speaker</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).speaker ? 'filled' : ''" x-text="getAssignment(match.id).speaker ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <div x-text="getAssignment(match.id).speaker || '—'"></div>
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>🎵 Musik</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).musik ? 'filled' : ''" x-text="getAssignment(match.id).musik ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <div x-text="getAssignment(match.id).musik || '—'"></div>
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>🚪 Båsdörr 1</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).bas1 ? 'filled' : ''" x-text="getAssignment(match.id).bas1 ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <div x-text="getAssignment(match.id).bas1 || '—'"></div>
+                            </div>
+                            <div class="role-box">
+                                <div class="role-label">
+                                    <span>🚪 Båsdörr 2</span>
+                                    <span class="role-badge" :class="getAssignment(match.id).bas2 ? 'filled' : ''" x-text="getAssignment(match.id).bas2 ? 'Bemannad' : 'Vakant'"></span>
+                                </div>
+                                <div x-text="getAssignment(match.id).bas2 || '—'"></div>
+                            </div>
+                        </template>
                     </template>
                 </div>
             </div>
@@ -302,8 +345,8 @@ function seketApp() {
             // Markera nästa match
             this.computeNext();
 
-            // För ev. molnläge – hämta lagrade roller (endast i admin-läge)
-            if (this.isLive && this.isAdmin) this.loadFromSupabase?.();
+            // För ev. molnläge – hämta lagrade roller så publikt läge speglar senast kända bemanning
+            if (this.isLive) this.loadFromSupabase?.();
         },
 
         async loadTeamLogos() {
@@ -377,7 +420,7 @@ function seketApp() {
                 localStorage.setItem('seket_db_url', this.dbUrl);
                 localStorage.setItem('seket_db_key', this.dbKey);
                 this.isLive = true;
-                if (this.isAdmin) this.loadFromSupabase?.();
+                this.loadFromSupabase?.();
                 alert("Databasinställningar sparade!");
             } else {
                 this.isLive = false;
@@ -600,7 +643,7 @@ function seketApp() {
                 }
                 this.parseICS(icsText);
                 // Efter kalendersynk – hämta delade roller så UI matchar databasen
-                if (this.isLive && this.isAdmin && typeof this.loadFromSupabase === 'function') {
+                if (this.isLive && typeof this.loadFromSupabase === 'function') {
                     await this.loadFromSupabase();
                 }
                 this.computeNext();
