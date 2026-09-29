@@ -496,10 +496,15 @@ function seketApp() {
             return m ? this.formatTime(m.start) : '—';
         },
         headerSlots() {
-            if (this.nextThree.length === 0) return [null, null, null];
-            if (this.nextThree.length === 1) return [this.nextThree[0], null, null];
-            if (this.nextThree.length === 2) return [this.nextThree[0], this.nextThree[1], null];
-            return this.nextThree;
+            // Show ALL upcoming visible matches in the header carousel (not just three)
+            const now = new Date();
+            const upcoming = this.visibleMatches()
+                .map(m => ({ m, d: new Date(m.start) }))
+                .filter(x => !isNaN(x.d.getTime()))
+                .filter(x => x.d.getTime() >= now.getTime() - 60*60*1000)
+                .sort((a, b) => a.d - b.d)
+                .map(x => x.m);
+            return upcoming.length ? upcoming : [null];
         },
         upcomingCount() {
             const now = new Date();
