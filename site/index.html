@@ -45,7 +45,15 @@
                 <button class="carousel-nav left" @click="scrollCarousel(-1)" aria-label="Föregående">‹</button>
                 <div class="carousel-rail" x-ref="carouselRail">
                     <template x-for="(m, idx) in headerSlots()" :key="m ? m.id : ('empty-'+idx)">
-                        <div class="mini-match" :class="m ? (isNextMatch(m) ? 'active' : '') + ((isHomeMatch(m) && openCount(m) > 0) ? ' has-open' : '') : ''">
+                        <div class="mini-match"
+                             :class="m ? (isNextMatch(m) ? 'active' : '') + ((isHomeMatch(m) && openCount(m) > 0) ? ' has-open' : '') : ''"
+                             :aria-label="m ? ('Öppna match ' + teamNames(m).home + ' vs ' + teamNames(m).away) : null"
+                             role="button"
+                             tabindex="0"
+                             @click="m && scrollToMatch(m)"
+                             @keydown.enter.prevent="m && scrollToMatch(m)"
+                             @keydown.space.prevent="m && scrollToMatch(m)"
+                             style="cursor: pointer;">
                             <template x-if="m">
                                 <div>
                                     <div class="mini-row">
@@ -149,7 +157,7 @@
         </div>
         
         <template x-for="match in visibleMatches()" :key="match.id">
-            <div class="match-card" :class="isNextMatch(match) ? 'is-next' : ''">
+            <div class="match-card" :id="'match-' + sanitizeMatchId(match.id)" :class="isNextMatch(match) ? 'is-next' : ''">
                 <div class="match-header">
                     <div>
                         <div class="teams">
@@ -574,6 +582,22 @@ function seketApp() {
                 const d = new Date(m.start);
                 return !isNaN(d.getTime()) && d.getTime() >= now.getTime() - 60*60*1000;
             }).length;
+        },
+        scrollToMatch(match) {
+            try {
+                const id = 'match-' + this.sanitizeMatchId(match?.id || '');
+                const el = document.getElementById(id);
+                if (el && typeof el.scrollIntoView === 'function') {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+                }
+                // If admin and home match, try to focus first input for quick entry
+                if (this.isAdmin && this.isHomeMatch(match) && el) {
+                    setTimeout(() => {
+                        const inp = el.querySelector('input[type="text"]');
+                        if (inp) inp.focus();
+                    }, 250);
+                }
+            } catch (_) { /* no-op */ }
         },
         nextFilledCount() {
             // Touch rev to ensure Alpine tracks updates from nested assignment changes
