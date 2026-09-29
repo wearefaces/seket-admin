@@ -187,101 +187,26 @@
                 </div>
 
                 <div class="roles-grid">
-                    <!-- Hide staffing inputs for away games and for non-admins -->
-                    <template x-if="isAdmin && isHomeMatch(match)">
-                        <template>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>⏱️ Klocka</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).klocka ? 'filled' : ''" x-text="getAssignment(match.id).klocka ? 'Bemannad' : 'Vakant'"></span>
+                    <template x-if="isHomeMatch(match)">
+                        <div class="roles-grid">
+                            <template x-for="rk in roleKeys()" :key="rk">
+                                <div class="role-box">
+                                    <div class="role-label">
+                                        <span x-text="labelForRole(rk)"></span>
+                                        <span class="role-badge" :class="getAssignment(match.id)[rk] ? 'filled' : ''" x-text="getAssignment(match.id)[rk] ? 'Bemannad' : 'Vakant'"></span>
+                                    </div>
+                                    <template x-if="isAdmin">
+                                        <input type="text" :value="getAssignment(match.id)[rk]" @input="saveRole(match.id, rk, $event.target.value)" placeholder="Fyll i namn…">
+                                    </template>
+                                    <template x-if="!isAdmin">
+                                        <div x-text="getAssignment(match.id)[rk] || '—'"></div>
+                                    </template>
                                 </div>
-                                <input type="text" :value="getAssignment(match.id).klocka" @input="saveRole(match.id, 'klocka', $event.target.value)" placeholder="Fyll i namn…">
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>💻 OVR Protokoll</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).ovr ? 'filled' : ''" x-text="getAssignment(match.id).ovr ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <input type="text" :value="getAssignment(match.id).ovr" @input="saveRole(match.id, 'ovr', $event.target.value)" placeholder="Fyll i namn…">
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>🎙️ Speaker</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).speaker ? 'filled' : ''" x-text="getAssignment(match.id).speaker ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <input type="text" :value="getAssignment(match.id).speaker" @input="saveRole(match.id, 'speaker', $event.target.value)" placeholder="Fyll i namn…">
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>🎵 Musik</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).musik ? 'filled' : ''" x-text="getAssignment(match.id).musik ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <input type="text" :value="getAssignment(match.id).musik" @input="saveRole(match.id, 'musik', $event.target.value)" placeholder="Fyll i namn…">
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>🚪 Båsdörr 1</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).bas1 ? 'filled' : ''" x-text="getAssignment(match.id).bas1 ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <input type="text" :value="getAssignment(match.id).bas1" @input="saveRole(match.id, 'bas1', $event.target.value)" placeholder="Fyll i namn…">
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>🚪 Båsdörr 2</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).bas2 ? 'filled' : ''" x-text="getAssignment(match.id).bas2 ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <input type="text" :value="getAssignment(match.id).bas2" @input="saveRole(match.id, 'bas2', $event.target.value)" placeholder="Fyll i namn…">
-                            </div>
-                        </template>
+                            </template>
+                        </div>
                     </template>
                     <template x-if="!isHomeMatch(match)">
                         <div class="muted" style="padding:8px 2px;">Bortamatch – bemanning hanteras av hemmalaget.</div>
-                    </template>
-                    <template x-if="!isAdmin && isHomeMatch(match)">
-                        <template>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>⏱️ Klocka</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).klocka ? 'filled' : ''" x-text="getAssignment(match.id).klocka ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <div x-text="getAssignment(match.id).klocka || '—'"></div>
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>💻 OVR Protokoll</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).ovr ? 'filled' : ''" x-text="getAssignment(match.id).ovr ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <div x-text="getAssignment(match.id).ovr || '—'"></div>
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>🎙️ Speaker</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).speaker ? 'filled' : ''" x-text="getAssignment(match.id).speaker ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <div x-text="getAssignment(match.id).speaker || '—'"></div>
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>🎵 Musik</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).musik ? 'filled' : ''" x-text="getAssignment(match.id).musik ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <div x-text="getAssignment(match.id).musik || '—'"></div>
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>🚪 Båsdörr 1</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).bas1 ? 'filled' : ''" x-text="getAssignment(match.id).bas1 ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <div x-text="getAssignment(match.id).bas1 || '—'"></div>
-                            </div>
-                            <div class="role-box">
-                                <div class="role-label">
-                                    <span>🚪 Båsdörr 2</span>
-                                    <span class="role-badge" :class="getAssignment(match.id).bas2 ? 'filled' : ''" x-text="getAssignment(match.id).bas2 ? 'Bemannad' : 'Vakant'"></span>
-                                </div>
-                                <div x-text="getAssignment(match.id).bas2 || '—'"></div>
-                            </div>
-                        </template>
                     </template>
                 </div>
             </div>
@@ -607,6 +532,17 @@ function seketApp() {
             return ['klocka','ovr','speaker','musik','bas1','bas2'].reduce((n,k)=>n + (a[k] ? 1 : 0), 0);
         },
         roleKeys() { return ['klocka','ovr','speaker','musik','bas1','bas2']; },
+        labelForRole(key) {
+            switch ((key || '').toString()) {
+                case 'klocka': return '⏱️ Klocka';
+                case 'ovr': return '💻 OVR Protokoll';
+                case 'speaker': return '🎙️ Speaker';
+                case 'musik': return '🎵 Musik';
+                case 'bas1': return '🚪 Båsdörr 1';
+                case 'bas2': return '🚪 Båsdörr 2';
+                default: return key;
+            }
+        },
         filledCount(match) {
             // Touch rev to ensure Alpine tracks updates even when only nested fields change
             const _ = this.assignmentsRev;
