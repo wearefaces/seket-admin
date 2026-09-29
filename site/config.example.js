@@ -4,4 +4,9 @@
 window.SEKET_SUPABASE_URL = "";
 window.SEKET_SUPABASE_ANON_KEY = "";
 window.SEKET_TEAM = ""; // e.g. "U12" or "A-lag"
+// Optional: Define home-arena keywords to detect home vs away from iCal LOCATION.
+// For Värmdö, Ekhallen/Ekvallen are common:
+// window.SEKET_HOME_ARENAS = ["Ekhallen", "Ekvallen"];
+// Optional: Club keywords for fallback (only used if LOCATION is missing).
+// window.SEKET_CLUB_KEYWORDS = ["Värmdö", "Värmdö HC"];
 
